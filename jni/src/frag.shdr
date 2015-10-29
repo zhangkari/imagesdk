@@ -1,0 +1,12 @@
+
+/*******************************
+ * file name:	 frag.shdr
+ * description:  fragment shader
+ * author:	 kari.zhang
+ * 
+ *******************************/
+
+void main()
+{
+
+}

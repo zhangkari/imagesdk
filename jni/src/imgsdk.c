@@ -11,6 +11,8 @@
 //#include <zlib.h>
 #include "imgsdk.h"
 
+#define TAG "ImgSdk"
+
 int main(int argc, char **argv) {
     if (2 != argc) {
         printf("Usage:\n");
@@ -54,4 +56,26 @@ int read_png(const char *path)
     fclose(fp);
 
     return OK;
+}
+
+int defaultShader()
+{
+	return -1;
+}
+
+int readFile(const char* path, char** mem)
+{
+	return -1;
+}
+
+int loadShader(int shaderType, const char* source)
+{
+	VALIDATE_NOT_NULL(source);
+	int shader = glCreateShader(shaderType);
+	if (!shader) {
+		LogE(TAG, "Failed glCreateShader");
+		return -1;
+	}
+
+	//glShaderSource(shader, source);
 }
