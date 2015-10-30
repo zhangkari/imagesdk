@@ -7,5 +7,5 @@ LOCAL_MODULE 	:= imgsdk
 LOCAL_SRC_FILES := imgsdk.c
 LOCAL_LDLIBS	:= -llog -lGLESv2
 
-include $(BUILD_SHARED_LIBRARY)
-#include $(BUILD_EXECUTABLE)
+#include $(BUILD_SHARED_LIBRARY)
+include $(BUILD_EXECUTABLE)

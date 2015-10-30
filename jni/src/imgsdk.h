@@ -38,10 +38,32 @@
         VALIDATE_NOT_NULL(X);                   \
     } while (0)
 
+
+typedef enum {
+	GRAY   = 1,
+	RGB16  = 2,
+	RGB24  = 3,
+	RGBA32 = 4
+} PixForm_e;
+
+typedef struct {
+	PixForm_e form;
+	int width;
+	int height;
+	char* base;
+} Bitmap_t;
+
 #define INFO  0
 #define DEBUG 1
 #define WARN  2
 #define ERROR 3
+
+/*
+static void Log(const char* tag, const char* fmt, ...) {
+	__android_log_print(DEBUG, tag, fmt);
+}
+*/
+
 static void LogD(const char* tag, const char* msg) {
 	__android_log_write(DEBUG, tag, msg);
 }
@@ -50,9 +72,12 @@ static void LogE(const char* tag, const char* msg) {
 	__android_log_write(ERROR, tag, msg);
 }
 
+int read_png(const char *path, Bitmap_t *mem);
+int write_png(const char *path, Bitmap_t *mem);
+void freeBitmap(Bitmap_t *mem);
 
-int defaultShader();
 int readFile(const char* path, char** mem);
-int loadShader(int shaderType, const char* source);
+int executeVertexShader(const char* source);
+int executeFragmentShader(const char* source);
 
 #endif
