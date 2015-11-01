@@ -15,8 +15,8 @@
 #define INVALID_PARAMS  -0x0003
 #define ERR_ALLOC_MEM   -0x0004
 
+#include <stdio.h>
 #include <android/log.h>
-#include <GLES2/gl2.h>
 
 #define VALIDATE_NOT_NULL(X) 						\
     do { 											\
@@ -53,31 +53,42 @@ typedef struct {
 	char* base;
 } Bitmap_t;
 
+struct SdkEnv;
+typedef struct SdkEnv SdkEnv;
+
 #define INFO  0
 #define DEBUG 1
 #define WARN  2
 #define ERROR 3
 
+#define TAG "ImageSDK"
 /*
-static void Log(const char* tag, const char* fmt, ...) {
-	__android_log_print(DEBUG, tag, fmt);
-}
+#define Log(...) ((void)__android_log_print(INFO, TAG, __VA_ARGS__))
+#define LogD(...) ((void)__android_log_print(DEBUG, TAG, __VA_ARGS__))
+#define LogE(...) ((void)__android_log_print(ERROR, TAG, __VA_ARGS__))
 */
 
-static void LogD(const char* tag, const char* msg) {
-	__android_log_write(DEBUG, tag, msg);
-}
+#define Log(...) ((void)printf( __VA_ARGS__))
+#define LogD(...) ((void)printf( __VA_ARGS__))
+#define LogE(...) ((void)printf( __VA_ARGS__))
 
-static void LogE(const char* tag, const char* msg) {
-	__android_log_write(ERROR, tag, msg);
-}
+
+#define VERT_SHADER_FILE "vert.shdr"
+#define FRAG_SHADER_FILE "frag.shdr"
+
+#define SURFACE_MAX_WIDTH  2048 
+#define SURFACE_MAX_HEIGHT 2048 
 
 int read_png(const char *path, Bitmap_t *mem);
 int write_png(const char *path, Bitmap_t *mem);
 void freeBitmap(Bitmap_t *mem);
 
+SdkEnv* defaultSdkEnv();
+int freeSdkEnv(SdkEnv *env);
+
+int setEffectCmd(SdkEnv* env, const char* cmd);
+int parseEffectCmd(SdkEnv* env);
 int readFile(const char* path, char** mem);
-int executeVertexShader(const char* source);
-int executeFragmentShader(const char* source);
+int createProgram(const char* vertSource, const char* fragSource);
 
 #endif

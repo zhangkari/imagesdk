@@ -1,20 +1,14 @@
 
-/*****************************
- * file name:	 vert.shdr
- * description:  vertex shader
- * author:	 kari.zhang
- * 
- ***************************/
-
-uniform mat4 uMVPMatrix;
-attribute vec4 aPosition;
-attribute vec2 aTextureCoord;
-attribute vec4 vColor;
-varying vec2 vTextureCoord;
+//////////////////////////////////
+// * file name:	   vert.shdr
+// * description:  vertex shader
+// * author:	   kari.zhang
+// * 
+/////////////////////////////////
 
 void main()
 {
-  glPosition = uMVPMatrix * aPosition;
-  vColor = aColor;
-  vTextureCoord = aTextureCoord;
+  vec4f pos = glPosition;
+  pos.x = 1 - pos.x;
+  glPosition = pos;
 }
