@@ -107,6 +107,8 @@ int main(int argc, char **argv) {
     // execute shader
     glUseProgram(env->programHandle);
 
+	eglWaitGL();
+
     // copy pixels from GPU memory to CPU memory
     glReadPixels(0, 0, img.width, img.height, GL_RGB, GL_UNSIGNED_BYTE, img.base);
 
@@ -274,7 +276,6 @@ int readFile(const char* path, char** mem)
         }
     }
 
-/*
     if (fread(*mem, 1, size, fp) != size) {
         LogE("Failed read shader to mem\n");
         close(fp);
@@ -282,13 +283,14 @@ int readFile(const char* path, char** mem)
         *mem = NULL;
         return -1;
     }
-*/
 
+	/*
     char *p = *mem;
     char c;
     while ( (c = fgetc(fp) != EOF )) {
         *p++ = c;
     }
+	*/
 
     return 0;
 }
@@ -310,18 +312,18 @@ static int loadShader(GLenum type, const char* source) {
     int compiled, len;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
     if (!compiled) {
+		memset(gLogBuff, 0, LOG_BUFF_SIZE);
         glGetShaderInfoLog(shader, LOG_BUFF_SIZE, &len, gLogBuff);
         if (len > 0) {
-            gLogBuff[len] = 0;
             Log("compile error log:%s\n", gLogBuff);
         } else {
             LogE("Failed get compile log\n");
         }
         shader = 0;
         glDeleteShader(shader);
-    }
+	}
 
-       return shader;
+	return shader;
 }
 
 int createProgram(const char* vertexSource, const char* fragSource)
@@ -334,19 +336,19 @@ int createProgram(const char* vertexSource, const char* fragSource)
     do {
         vertShader = loadShader(GL_VERTEX_SHADER, vertexSource);
         if (!vertShader) {
-            LogE("Failed create vertex shader\n");
+            LogE("Failed load vertex shader\n");
             break;
         }
 
         fragShader = loadShader(GL_FRAGMENT_SHADER, fragSource);
         if (!fragShader) {
-            LogE("Failed create fragment sahder\n");
+            LogE("Failed load fragment sahder\n");
             break;
         }
 
         // Mark to delete, fre automaticlly when do not use any longer
-        glDeleteShader(vertShader);
-        glDeleteShader(fragShader);
+        //glDeleteShader(vertShader);
+        //glDeleteShader(fragShader);
 
         program = glCreateProgram();
         if (!program) {
@@ -361,9 +363,9 @@ int createProgram(const char* vertexSource, const char* fragSource)
         glGetProgramiv(program, GL_LINK_STATUS, &linkStatus);
         GLint len;
         if (!linkStatus) {
+			memset(gLogBuff, 0, LOG_BUFF_SIZE);
             glGetProgramInfoLog(program, LOG_BUFF_SIZE, &len, gLogBuff); 
             if (len > 0) {
-                gLogBuff[len] = 0;
                 Log("link error log:%s\n", gLogBuff);
             } else {
                 LogE("Failed get link log\n");

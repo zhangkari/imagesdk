@@ -1,14 +1,5 @@
 
-//////////////////////////////////
-// * file name:	   vert.shdr
-// * description:  vertex shader
-// * author:	   kari.zhang
-// * 
-/////////////////////////////////
-
 void main()
 {
-  vec4f pos = glPosition;
-  pos.x = 1 - pos.x;
-  glPosition = pos;
+  vec4 pos = gl_Position;
 }
