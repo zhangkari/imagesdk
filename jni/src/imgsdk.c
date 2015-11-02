@@ -107,7 +107,8 @@ int main(int argc, char **argv) {
     // execute shader
     glUseProgram(env->programHandle);
 
-	eglWaitGL();
+	//eglWaitGL();
+    eglWaitClient();
 
     // copy pixels from GPU memory to CPU memory
     glReadPixels(0, 0, img.width, img.height, GL_RGB, GL_UNSIGNED_BYTE, img.base);
