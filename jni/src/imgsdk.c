@@ -93,25 +93,45 @@ int main(int argc, char **argv) {
         LogE("Failed get SdkEnv instance\n");
     }
 
-    int buffers[1];
-    glGenBuffers(1, buffers);
-    if (!glIsBuffer(buffers[0])) {
-        LogE("Failed glGenBuffer at 0\n");
+	GLuint tex;
+	glGenTextures(1, &tex);
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 1024, 0, GL_RGBA, GL_UNSIGNED_INT, img.base); 
+	if(!glIsTexture(tex)) {
+		LogE("Failed gen texture\n");
+	}
+
+    GLuint fb;
+    glGenFramebuffers(1, &fb);
+	glBindFramebuffer(GL_FRAMEBUFFER, fb);
+    if (!glIsFramebuffer(fb)) {
+        LogE("Failed glGenFramebuffer\n");
     }
+	
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex,0);
 
-    // copy pixels from CPU memory to GPU memory
-    int size = img.form * img.width * img.height;
-    glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
-    glBufferData(GL_ARRAY_BUFFER, size, img.base, GL_STREAM_DRAW);
+	GLuint rb_color;
+	glGenRenderbuffers(1, &rb_color);
+	glBindRenderbuffer(GL_RENDERBUFFER, rb_color);
+	if (!glIsRenderbuffer(rb_color)) {
+		LogE("Failed genRenderbuffer\n");
+	}
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA, img.width, img.height);
 
-    // execute shader
-    glUseProgram(env->programHandle);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rb_color);
 
 	//eglWaitGL();
-    eglWaitClient();
+    //eglWaitClient();
+	eglWaitNative(EGL_CORE_NATIVE_ENGINE);
 
+
+	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (GL_FRAMEBUFFER_COMPLETE != status) {
+		LogE("framebuffer status:0x%X\n", status);
+	}
+	
     // copy pixels from GPU memory to CPU memory
-    glReadPixels(0, 0, img.width, img.height, GL_RGB, GL_UNSIGNED_BYTE, img.base);
+    glReadPixels(0, 0, img.width, img.height, GL_RGBA, GL_UNSIGNED_INT, img.base);
 
     if (write_png("2.png", &img) < 0) {
         LogE("Failed write png\n");
@@ -163,7 +183,7 @@ int read_png(const char *path, Bitmap_t *mem)
     mem->width = width;
     mem->height = height;
 
-    Log("%s: bpp=%d\n", TAG, bpp);
+    Log("[%s %d x %d bpp=%d]\n", path, width, height, bpp);
 
     int size = width * height * bpp;
     if (mem->base == NULL) {
@@ -176,12 +196,6 @@ int read_png(const char *path, Bitmap_t *mem)
     char *start = mem->base;
     int i, j;
     for (i = 0; i < height; ++i) {
-        /*
-           for (j = 0; j < width; ++j) {
-           memcpy(start, row_pointers[i] + j, bpp);
-           start += bpp;
-           }
-         */
         memcpy(start, row_pointers[i], width * bpp);
         start += width * bpp;
     }
@@ -285,14 +299,6 @@ int readFile(const char* path, char** mem)
         return -1;
     }
 
-	/*
-    char *p = *mem;
-    char c;
-    while ( (c = fgetc(fp) != EOF )) {
-        *p++ = c;
-    }
-	*/
-
     return 0;
 }
 
@@ -306,9 +312,8 @@ static int loadShader(GLenum type, const char* source) {
         LogE("Invalid shader\n");
         return 0;
     }
-    GLint length;
+    GLint length = strlen(source);
     glShaderSource(shader, 1, &source, &length);
-    Log("glShaderSource length = %d\n", length);
     glCompileShader(shader);
     int compiled, len;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
@@ -316,7 +321,7 @@ static int loadShader(GLenum type, const char* source) {
 		memset(gLogBuff, 0, LOG_BUFF_SIZE);
         glGetShaderInfoLog(shader, LOG_BUFF_SIZE, &len, gLogBuff);
         if (len > 0) {
-            Log("compile error log:%s\n", gLogBuff);
+            Log("compile error:%s\n", gLogBuff);
         } else {
             LogE("Failed get compile log\n");
         }
@@ -374,6 +379,8 @@ int createProgram(const char* vertexSource, const char* fragSource)
             break;
         }
 
+		glUseProgram(program);
+
         return program;
 
     } while (0);
@@ -414,7 +421,7 @@ static int initEGL(SdkEnv *env)
         LogE("Failed eglInitialize\n");
         return -1;
     }
-    Log("major:%d, minor:%d\n", major, minor);
+    Log("EGL %d.%d\n", major, minor);
 
     EGLConfig configs[2];
     EGLint numConfigs;
@@ -422,7 +429,6 @@ static int initEGL(SdkEnv *env)
         LogE("Failed eglGetConfigs\n");
         return -1;
     }
-    Log("config num = %d\n", numConfigs);
 
     EGLint cfg_attrs[] = { 
         EGL_SURFACE_TYPE,    EGL_PBUFFER_BIT,
@@ -432,20 +438,20 @@ static int initEGL(SdkEnv *env)
         EGL_RED_SIZE,        8,
         EGL_NONE
     };
-    if (!eglChooseConfig(env->display, cfg_attrs, configs, 2, &numConfigs) || numConfigs < 1) {
-        LogE("Failed eglChooseConfig\n");
-        return -1;
-    }
-    Log("get config num = %d as attributes\n", numConfigs);
+	if (!eglChooseConfig(env->display, cfg_attrs, configs, 2, &numConfigs) || numConfigs < 1) {
+		LogE("Failed eglChooseConfig\n");
+		return -1;
+	}
 
-   EGLint surface_attrs[] = {
-        EGL_WIDTH, SURFACE_MAX_WIDTH,   // pBuffer needs at least 1 x 1
-        EGL_HEIGHT,SURFACE_MAX_HEIGHT,  // pBuffer needs at least 1 x 1 
-        EGL_TEXTURE_TARGET, EGL_NO_TEXTURE,
-        EGL_TEXTURE_FORMAT, EGL_NO_TEXTURE,
-        EGL_NONE
-    };
+	EGLint surface_attrs[] = {
+		EGL_WIDTH, SURFACE_MAX_WIDTH,   // pBuffer needs at least 1 x 1
+		EGL_HEIGHT,SURFACE_MAX_HEIGHT,  // pBuffer needs at least 1 x 1 
+		EGL_TEXTURE_TARGET, EGL_NO_TEXTURE,
+		EGL_TEXTURE_FORMAT, EGL_NO_TEXTURE,
+		EGL_NONE
+	};
     env->surface = eglCreatePbufferSurface(env->display, configs[0], surface_attrs);
+
     if (EGL_NO_SURFACE == env->surface) {
         LogE("Failed create Pbuffer Surface, error code:%x\n", eglGetError());
         return -1;
@@ -476,8 +482,7 @@ static int initEGL(SdkEnv *env)
 
     eglQuerySurface(env->display, env->surface, EGL_WIDTH, &env->eglWidth);
     eglQuerySurface(env->display, env->surface, EGL_HEIGHT, &env->eglHeight);
-
-    Log("egl_width = %d, egl_height = %d\n", env->eglWidth, env->eglHeight);
+    Log("Max support %d x %d\n", env->eglWidth, env->eglHeight);
 
     return 0;
 }
@@ -516,8 +521,9 @@ SdkEnv* defaultSdkEnv() {
         return NULL;
     }
 
+	// log openGL information
     const GLubyte* version = glGetString(GL_VERSION);
-    Log("opengl version:%s\n", version);
+    Log("%s\n", version);
 
     char *vertSource = NULL;
     int count = readFile(VERT_SHADER_FILE, &vertSource);
