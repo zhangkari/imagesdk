@@ -93,45 +93,73 @@ int main(int argc, char **argv) {
         LogE("Failed get SdkEnv instance\n");
     }
 
-	GLuint tex;
-	glGenTextures(1, &tex);
-	glBindTexture(GL_TEXTURE_2D, tex);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 1024, 0, GL_RGBA, GL_UNSIGNED_INT, img.base); 
-	if(!glIsTexture(tex)) {
-		LogE("Failed gen texture\n");
-	}
+
+	GLuint tex_in;
+	glGenTextures(1, &tex_in);
+	glBindTexture(GL_TEXTURE_2D, tex_in);
+	int level = 0;
+	int border = 0;
+	glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, img.width, img.height, border, GL_RGBA, GL_UNSIGNED_BYTE, img.base); 
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	GLuint tex_out;
+	glGenTextures(1, &tex_out);
+	glBindTexture(GL_TEXTURE_2D, tex_out);
+	glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, img.width, img.height, border, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
     GLuint fb;
     glGenFramebuffers(1, &fb);
 	glBindFramebuffer(GL_FRAMEBUFFER, fb);
-    if (!glIsFramebuffer(fb)) {
-        LogE("Failed glGenFramebuffer\n");
-    }
-	
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex,0);
-
-	GLuint rb_color;
-	glGenRenderbuffers(1, &rb_color);
-	glBindRenderbuffer(GL_RENDERBUFFER, rb_color);
-	if (!glIsRenderbuffer(rb_color)) {
-		LogE("Failed genRenderbuffer\n");
-	}
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA, img.width, img.height);
-
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rb_color);
-
-	//eglWaitGL();
-    //eglWaitClient();
-	eglWaitNative(EGL_CORE_NATIVE_ENGINE);
-
-
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_out, level);
 	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (GL_FRAMEBUFFER_COMPLETE != status) {
 		LogE("framebuffer status:0x%X\n", status);
 	}
-	
+
+	glViewport(0, 0, img.width, img.height);
+	glUseProgram(env->programHandle);
+	GLint positionHandle = glGetAttribLocation(env->programHandle, "aPosition");
+	GLint textureCoordHandle = glGetUniformLocation(env->programHandle, "aTextureCoord");
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex_in);
+	GLint sampleHandle = glGetUniformLocation(env->programHandle, "sTexture");
+	glUniform1i(sampleHandle, 0);
+
+	float vexBuf[] = {
+		-1.0f, -1.0f, 0.0f,
+		 1.0f, -1.0f, 0.0f, 
+		-1.0f,  1.0f, 0.0f, 
+		 1.0f,  1.0f, 0.0f,
+	};
+	float texBuf[] = {
+		0.0f, 0.0f,
+		1.0f, 0.0f,
+		0.0f, 1.0f,
+		1.0f, 1.0f,
+	};
+	glVertexAttribPointer(positionHandle, 3, GL_FLOAT, GL_FALSE, 0, vexBuf); 
+	glUniform2fv(env->programHandle, textureCoordHandle, texBuf);
+
+
+	/*
+	glDrawArrays(GL_TRIANGLES, 0, 3);
+	*/
+
+
+#if 0
+	GLint textureHandle = glGetUniformLocation(en->programHandle, "inputImageTexture");
+	GLint texCoordHandle = glGetUniformLocation(en->programHandle, "inputTextureCoord");
+
+#endif
+
+	glBindTexture(GL_TEXTURE_2D, tex_out);
+
     // copy pixels from GPU memory to CPU memory
-    glReadPixels(0, 0, img.width, img.height, GL_RGBA, GL_UNSIGNED_INT, img.base);
+    glReadPixels(0, 1, img.width, img.height, GL_RGBA, GL_UNSIGNED_BYTE, img.base);
 
     if (write_png("2.png", &img) < 0) {
         LogE("Failed write png\n");
@@ -378,8 +406,6 @@ int createProgram(const char* vertexSource, const char* fragSource)
             }
             break;
         }
-
-		glUseProgram(program);
 
         return program;
 
