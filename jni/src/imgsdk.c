@@ -14,6 +14,9 @@
 #include <png.h>
 #include "imgsdk.h"
 
+/**
+ * User's command
+ */
 typedef struct {
     GLchar  *cmd;
     GLuint  cmdLen;
@@ -21,58 +24,64 @@ typedef struct {
     GLuint  paramCount;
 } UserCmd;
 
+enum {
+	ACTIVE_PATH,
+	ACTIVE_PIXEL
+};
+
+/**
+ * User's image information
+ */
+typedef struct {
+    GLuint    width;	// user's image width
+    GLuint    height;	// user's image height
+    GLchar    *path;	// user's image path (*.png)
+    GLchar    *pixel;	// user's image pixel
+	GLuint    active;	// which is active ( path or pixel) 
+	PixForm_e pixfmt;	// pixel format
+} UserData;
+
+/**
+ * Shader variable handle
+ */
+typedef struct CommHandle {
+    GLuint program;
+    GLuint position;
+	GLuint color;
+} CommHandle;
+
+/**
+ * EGL environment
+ */
+typedef struct eglEnv {
+	EGLDisplay display;
+    EGLSurface surface;
+    EGLContext context;
+    EGLint     width;
+    EGLint     height;
+    EGLNativeWindowType window;
+} eglEnv;
 
 typedef void (*CallbackFunc)(SdkEnv *);
 
 typedef struct SdkEnv {
-
-    //struct android_app* app; // native Activity
-
+	// native Activity
+    struct android_app* app; 
     // EGL
-    EGLDisplay display;
-    EGLSurface surface;
-    EGLContext context;
-    EGLint    eglWidth;
-    EGLint    eglHeight;
-    EGLNativeWindowType window;
-    
-    // openGL ES2
-    GLuint programHandle;
-    GLuint positionHandle;
-
+	eglEnv egl;
+    // openGL ES2 shader variable handle 
+	CommHandle handle;
     // user data
-    GLuint width;
-    GLuint height;
-    GLchar *path;
-    GLchar *pixel;
-
+	UserData userData;
     // user cmd
-    UserCmd* cmd;
-
+    UserCmd userCmd;
     // callback	
-    CallbackFunc onDraw;
-    CallbackFunc onRender;
+	CallbackFunc OnCreate;
+    CallbackFunc OnDraw;
+	CallbackFunc OnDestory;
 } SdkEnv;
 
-typedef struct UserData {
-    // handle to a pragram object
-    GLuint program;
-
-    // attribute location;
-    GLint  positionLoc;
-    GLint  textureLoc;
-
-    // uniform location
-    GLint matrixModeLoc;
-    GLint martrixViewLoc;
-    GLint matrixPerspectiveLoc;
-
-    // sampler location
-    GLint samplerLoc;
-
-    // texture
-    GLint texture;
-} UserData;
+static void onDraw(SdkEnv *env);
 
 int main(int argc, char **argv) {
     if (2 != argc) {
@@ -93,71 +102,12 @@ int main(int argc, char **argv) {
         LogE("Failed get SdkEnv instance\n");
     }
 
+	env->userData.width = img.width;
+	env->userData.height = img.height;
+	env->OnDraw = onDraw;
+	env->OnDraw(env);
 
-	GLuint tex_in;
-	glGenTextures(1, &tex_in);
-	glBindTexture(GL_TEXTURE_2D, tex_in);
-	int level = 0;
-	int border = 0;
-	glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, img.width, img.height, border, GL_RGBA, GL_UNSIGNED_BYTE, img.base); 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-	GLuint tex_out;
-	glGenTextures(1, &tex_out);
-	glBindTexture(GL_TEXTURE_2D, tex_out);
-	glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, img.width, img.height, border, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-    GLuint fb;
-    glGenFramebuffers(1, &fb);
-	glBindFramebuffer(GL_FRAMEBUFFER, fb);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex_out, level);
-	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-	if (GL_FRAMEBUFFER_COMPLETE != status) {
-		LogE("framebuffer status:0x%X\n", status);
-	}
-
-	glViewport(0, 0, img.width, img.height);
-	glUseProgram(env->programHandle);
-	GLint positionHandle = glGetAttribLocation(env->programHandle, "aPosition");
-	GLint textureCoordHandle = glGetUniformLocation(env->programHandle, "aTextureCoord");
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, tex_in);
-	GLint sampleHandle = glGetUniformLocation(env->programHandle, "sTexture");
-	glUniform1i(sampleHandle, 0);
-
-	float vexBuf[] = {
-		-1.0f, -1.0f, 0.0f,
-		 1.0f, -1.0f, 0.0f, 
-		-1.0f,  1.0f, 0.0f, 
-		 1.0f,  1.0f, 0.0f,
-	};
-	float texBuf[] = {
-		0.0f, 0.0f,
-		1.0f, 0.0f,
-		0.0f, 1.0f,
-		1.0f, 1.0f,
-	};
-	glVertexAttribPointer(positionHandle, 3, GL_FLOAT, GL_FALSE, 0, vexBuf); 
-	glUniform2fv(env->programHandle, textureCoordHandle, texBuf);
-
-
-	/*
-	glDrawArrays(GL_TRIANGLES, 0, 3);
-	*/
-
-
-#if 0
-	GLint textureHandle = glGetUniformLocation(en->programHandle, "inputImageTexture");
-	GLint texCoordHandle = glGetUniformLocation(en->programHandle, "inputTextureCoord");
-
-#endif
-
-	glBindTexture(GL_TEXTURE_2D, tex_out);
-
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
     // copy pixels from GPU memory to CPU memory
     glReadPixels(0, 1, img.width, img.height, GL_RGBA, GL_UNSIGNED_BYTE, img.base);
 
@@ -437,13 +387,13 @@ void freeBitmap(Bitmap_t *mem)
 static int initEGL(SdkEnv *env)
 {
     VALIDATE_NOT_NULL(env);
-    env->display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    if (EGL_NO_DISPLAY == env->display || EGL_SUCCESS != eglGetError()) {
+    env->egl.display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (EGL_NO_DISPLAY == env->egl.display || EGL_SUCCESS != eglGetError()) {
         LogE("Failed eglGetDisplay\n");
         return -1;
     }
     EGLint major, minor;
-    if (!eglInitialize(env->display, &major, &minor) || EGL_SUCCESS != eglGetError()) {
+    if (!eglInitialize(env->egl.display, &major, &minor) || EGL_SUCCESS != eglGetError()) {
         LogE("Failed eglInitialize\n");
         return -1;
     }
@@ -451,7 +401,7 @@ static int initEGL(SdkEnv *env)
 
     EGLConfig configs[2];
     EGLint numConfigs;
-    if (eglGetConfigs(env->display, configs, 2, &numConfigs) == EGL_FALSE || EGL_SUCCESS != eglGetError()) {
+    if (eglGetConfigs(env->egl.display, configs, 2, &numConfigs) == EGL_FALSE || EGL_SUCCESS != eglGetError()) {
         LogE("Failed eglGetConfigs\n");
         return -1;
     }
@@ -464,7 +414,7 @@ static int initEGL(SdkEnv *env)
         EGL_RED_SIZE,        8,
         EGL_NONE
     };
-	if (!eglChooseConfig(env->display, cfg_attrs, configs, 2, &numConfigs) || numConfigs < 1) {
+	if (!eglChooseConfig(env->egl.display, cfg_attrs, configs, 2, &numConfigs) || numConfigs < 1) {
 		LogE("Failed eglChooseConfig\n");
 		return -1;
 	}
@@ -476,9 +426,9 @@ static int initEGL(SdkEnv *env)
 		EGL_TEXTURE_FORMAT, EGL_NO_TEXTURE,
 		EGL_NONE
 	};
-    env->surface = eglCreatePbufferSurface(env->display, configs[0], surface_attrs);
+    env->egl.surface = eglCreatePbufferSurface(env->egl.display, configs[0], surface_attrs);
 
-    if (EGL_NO_SURFACE == env->surface) {
+    if (EGL_NO_SURFACE == env->egl.surface) {
         LogE("Failed create Pbuffer Surface, error code:%x\n", eglGetError());
         return -1;
     }
@@ -492,23 +442,23 @@ static int initEGL(SdkEnv *env)
         EGL_CONTEXT_CLIENT_VERSION, 2,
         EGL_NONE
     };
-    env->context = eglCreateContext(env->display, configs[0], EGL_NO_CONTEXT, context_attrs);
-    if (EGL_NO_CONTEXT == env->context) {
+    env->egl.context = eglCreateContext(env->egl.display, configs[0], EGL_NO_CONTEXT, context_attrs);
+    if (EGL_NO_CONTEXT == env->egl.context) {
         LogE("Failed create context\n");
         Log("error code:%x\n", eglGetError());
         return -1;
     }
 
-    if (!eglMakeCurrent(env->display, env->surface, env->surface, env->context)) {
+    if (!eglMakeCurrent(env->egl.display, env->egl.surface, env->egl.surface, env->egl.context)) {
         LogE("Failed eglMakeCurrent\n");
         EGLint errcode = eglGetError();
         LogE("error code:%x\n", errcode);
         return -1;
     }
 
-    eglQuerySurface(env->display, env->surface, EGL_WIDTH, &env->eglWidth);
-    eglQuerySurface(env->display, env->surface, EGL_HEIGHT, &env->eglHeight);
-    Log("Max support %d x %d\n", env->eglWidth, env->eglHeight);
+    eglQuerySurface(env->egl.display, env->egl.surface, EGL_WIDTH, &env->egl.width);
+    eglQuerySurface(env->egl.display, env->egl.surface, EGL_HEIGHT, &env->egl.height);
+    Log("Max support %d x %d\n", env->egl.width, env->egl.height);
 
     return 0;
 }
@@ -519,23 +469,44 @@ int freeSdkEnv(SdkEnv *env)
         return -1;
     }
 
-    if (env->display != EGL_NO_DISPLAY) {
-        eglMakeCurrent(env->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-        if (env->context != EGL_NO_CONTEXT) {
-            eglDestroyContext(env->display, env->context);
+    if (env->egl.display != EGL_NO_DISPLAY) {
+        eglMakeCurrent(env->egl.display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        if (env->egl.context != EGL_NO_CONTEXT) {
+            eglDestroyContext(env->egl.display, env->egl.context);
         }
-        if (env->surface != EGL_NO_SURFACE) {
-            eglDestroySurface(env->display, env->surface);
+        if (env->egl.surface != EGL_NO_SURFACE) {
+            eglDestroySurface(env->egl.display, env->egl.surface);
         }
-        eglTerminate(env->display);
+        eglTerminate(env->egl.display);
     }
 
-    env->display = EGL_NO_DISPLAY;
-    env->context = EGL_NO_CONTEXT;
-    env->surface = EGL_NO_SURFACE;
+    env->egl.display = EGL_NO_DISPLAY;
+    env->egl.context = EGL_NO_CONTEXT;
+    env->egl.surface = EGL_NO_SURFACE;
     free (env);
 }
 
+/**
+ * Find all variables handle in shader
+ */
+static int findShaderHandles(SdkEnv *env) {
+	if (NULL == env) {
+		return -1;
+	}
+
+	if (0 == env->handle.program) {
+		return -1;
+	}
+
+	env->handle.position = glGetAttribLocation(env->handle.program, "aPosition");
+	env->handle.color = glGetAttribLocation(env->handle.program, "aColor");
+
+	return 0;
+}
+
+/**
+ * Create a default SdkEnv instance
+ */
 SdkEnv* defaultSdkEnv() {
     SdkEnv *env = (SdkEnv *)calloc(1, sizeof(SdkEnv));
     if (NULL == env){
@@ -576,7 +547,10 @@ SdkEnv* defaultSdkEnv() {
         return NULL;
     }
 
-    env->programHandle = program;
+    env->handle.program = program;
+	if (findShaderHandles(env) < 0) {
+		LogE("Failed findShaderHandles\n");
+	}
 
     return env;
 }
@@ -595,3 +569,20 @@ int parseEffectCmd(SdkEnv* env)
     return -1;
 }
 
+static void onDraw(SdkEnv *env) {
+	GLfloat vertex[] = {
+		 0.0,   0.5f, 0.0f,
+		-0.5f, -0.5f, 0.0f,
+		 0.5f, -0.5f, 0.0f
+	};
+	GLfloat color[] = {
+	0.0f, 1.0f, 0.0f, 1.0f
+	};
+	glViewport(0, 0, env->userData.width, env->userData.height);
+	//glClear(GL_COLOR_BUFFER_BIT);
+	glUseProgram ( env->handle.program);
+	glVertexAttribPointer(env->handle.color, 4, GL_FLOAT, GL_FALSE, 0, color);
+	glVertexAttribPointer(env->handle.position, 3, GL_FLOAT, GL_FALSE, 0, vertex);
+	glEnableVertexAttribArray(env->handle.position);
+	glDrawArrays(GL_TRIANGLES, 0, 3);
+}
