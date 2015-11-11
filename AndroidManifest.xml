@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+	package="com.kari.imgsdk"
     android:versionCode="1"
     android:versionName="1.0" >
 
@@ -7,7 +8,23 @@
         android:minSdkVersion="14"
         android:targetSdkVersion="14" />
 
-    <application android:debuggable="true">
+    <application 
+		android:label="ImageSDK"
+		android:hasCode="false"
+		android:debuggable="true">
+
+		<activity 
+			android:name="android.app.NativeActivity"
+			android:label="ImageSDK" 
+			android:launchMode="singleTask">
+			<meta-data android:name="android.app.lib_name"
+				android:value="imgsdk" />
+			<intent-filter>
+				<action android:name="android.intent.action.MAIN" />
+				<category android:name="android.intent.category.LAUNCHER" />
+			</intent-filter>
+		</activity>
+
     </application>
 
 </manifest>

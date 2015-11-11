@@ -1,2 +1,12 @@
+
+# generated dir
 libs
 obj
+bin
+
+# ant configuration files
+.ant-targets-build.xml
+
+# local configurations
+local.properties
+

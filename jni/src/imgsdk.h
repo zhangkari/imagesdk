@@ -15,8 +15,9 @@
 #define INVALID_PARAMS  -0x0003
 #define ERR_ALLOC_MEM   -0x0004
 
-#include <stdio.h>
 #include <android/log.h>
+#include <EGL/egl.h>
+#include <stdio.h>
 
 #define VALIDATE_NOT_NULL(X) 						\
     do { 											\
@@ -83,12 +84,17 @@ int read_png(const char *path, Bitmap_t *mem);
 int write_png(const char *path, Bitmap_t *mem);
 void freeBitmap(Bitmap_t *mem);
 
-SdkEnv* defaultSdkEnv();
+SdkEnv* newDefaultSdkEnv();
 int freeSdkEnv(SdkEnv *env);
+int setEglNativeWindow(SdkEnv *env, EGLNativeWindowType window);
+int setPlatformData(SdkEnv *env, void *data);
+void swapEglBuffers(SdkEnv *env);
+void onSdkCreate(SdkEnv *env);
+void onSdkDraw(SdkEnv *env);
+void onSdkDestroy(SdkEnv *env);
 
 int setEffectCmd(SdkEnv* env, const char* cmd);
 int parseEffectCmd(SdkEnv* env);
 int readFile(const char* path, char** mem);
-int createProgram(const char* vertSource, const char* fragSource);
 
 #endif

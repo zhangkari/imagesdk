@@ -9,7 +9,6 @@
 #include <malloc.h>
 #include <string.h>
 #include <android_native_app_glue.h>
-#include <EGL/egl.h>
 #include <GLES2/gl2.h>
 #include <png.h>
 #include "imgsdk.h"
@@ -29,16 +28,23 @@ enum {
 	ACTIVE_PIXEL
 };
 
+enum {
+	ANDROID_PLATFORM = 0,
+	IOS_PLATFORM     = 1
+};
+
 /**
  * User's image information
  */
 typedef struct {
-    GLuint    width;	// user's image width
-    GLuint    height;	// user's image height
-    GLchar    *path;	// user's image path (*.png)
-    GLchar    *pixel;	// user's image pixel
-	GLuint    active;	// which is active ( path or pixel) 
-	PixForm_e pixfmt;	// pixel format
+    GLuint    width;		// user's image width
+    GLuint    height;		// user's image height
+    GLchar   *path;			// user's image path (*.png)
+    GLchar   *pixel;		// user's image pixel
+	GLuint    active;		// which is active ( path or pixel) 
+	PixForm_e pixfmt;		// pixel format
+	int		  platform;		// 0 Android, 1 iOS
+	void	 *platformData; // AssetManager in Android
 } UserData;
 
 /**
@@ -62,9 +68,32 @@ typedef struct eglEnv {
     EGLNativeWindowType window;
 } eglEnv;
 
+/**
+ * ImageSDK callback function
+ */
 typedef void (*CallbackFunc)(SdkEnv *);
 
+/**
+ * Indicate sdk status
+ */
+enum {
+	SDK_STATUS_ERR  = 0,
+	SDK_STATUS_OK   = 1,
+};
+
+/**
+ * Indicate sdk type
+ */
+enum {
+	ON_SCREEN_RENDER  = 0,
+	OFF_SCREEN_RENDER = 1
+}; 
+
 typedef struct SdkEnv {
+	// sdk type
+	int type;
+	// sdk status
+	int status;
 	// native Activity
     struct android_app* app; 
     // EGL
@@ -76,12 +105,14 @@ typedef struct SdkEnv {
     // user cmd
     UserCmd userCmd;
     // callback	
-	CallbackFunc OnCreate;
-    CallbackFunc OnDraw;
-	CallbackFunc OnDestory;
+	CallbackFunc onCreate;
+    CallbackFunc onDraw;
+	CallbackFunc onDestroy;
 } SdkEnv;
 
+static void onCreate(SdkEnv *env);
 static void onDraw(SdkEnv *env);
+static void onDestroy(SdkEnv *env);
 
 int main(int argc, char **argv) {
     if (2 != argc) {
@@ -97,17 +128,23 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    SdkEnv *env = defaultSdkEnv();
+    SdkEnv *env = newDefaultSdkEnv();
     if (NULL == env) {
         LogE("Failed get SdkEnv instance\n");
     }
 
-	env->userData.width = img.width;
+	env->userData.width  = img.width;
 	env->userData.height = img.height;
-	env->OnDraw = onDraw;
-	env->OnDraw(env);
+	env->userData.pixel  = img.base;
+	env->userData.pixfmt = img.form;
+	env->onCreate  = onCreate;
+	env->onDraw	   = onDraw;
+	env->onDestroy = onDestroy;
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	env->onCreate(env);
+	env->onDraw(env);
+
+	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
     // copy pixels from GPU memory to CPU memory
     glReadPixels(0, 1, img.width, img.height, GL_RGBA, GL_UNSIGNED_BYTE, img.base);
 
@@ -117,6 +154,8 @@ int main(int argc, char **argv) {
 
     freeBitmap(&img);
     freeSdkEnv(env);
+
+	env->onDestroy(env);
 }
 
 int read_png(const char *path, Bitmap_t *mem)
@@ -310,7 +349,7 @@ static int loadShader(GLenum type, const char* source) {
 	return shader;
 }
 
-int createProgram(const char* vertexSource, const char* fragSource)
+static int createProgram(const char* vertexSource, const char* fragSource)
 {
     VALIDATE_NOT_NULL2(vertexSource, fragSource);
     int program = 0;
@@ -384,8 +423,7 @@ void freeBitmap(Bitmap_t *mem)
     }
 }
 
-static int initEGL(SdkEnv *env)
-{
+static int initDefaultEGL(SdkEnv *env) {
     VALIDATE_NOT_NULL(env);
     env->egl.display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if (EGL_NO_DISPLAY == env->egl.display || EGL_SUCCESS != eglGetError()) {
@@ -483,6 +521,22 @@ int freeSdkEnv(SdkEnv *env)
     env->egl.display = EGL_NO_DISPLAY;
     env->egl.context = EGL_NO_CONTEXT;
     env->egl.surface = EGL_NO_SURFACE;
+
+	if (NULL != env->userData.pixel) {
+		free (env->userData.pixel);
+		env->userData.pixel = NULL;
+	}
+
+	if (NULL != env->userData.path) {
+		free (env->userData.path);
+		env->userData.path = NULL;
+	}
+
+	if (NULL != env->userCmd.cmd) {
+		free (env->userCmd.cmd);
+		env->userCmd.cmd = NULL;
+	}
+
     free (env);
 }
 
@@ -507,12 +561,12 @@ static int findShaderHandles(SdkEnv *env) {
 /**
  * Create a default SdkEnv instance
  */
-SdkEnv* defaultSdkEnv() {
+SdkEnv* newDefaultSdkEnv() {
     SdkEnv *env = (SdkEnv *)calloc(1, sizeof(SdkEnv));
     if (NULL == env){
         return NULL;
     }
-    if (initEGL(env) < 0) {
+    if (initDefaultEGL(env) < 0) {
         LogE("Failed initEGL\n");
         freeSdkEnv(env);
         return NULL;
@@ -575,14 +629,64 @@ static void onDraw(SdkEnv *env) {
 		-0.5f, -0.5f, 0.0f,
 		 0.5f, -0.5f, 0.0f
 	};
+
 	GLfloat color[] = {
 	0.0f, 1.0f, 0.0f, 1.0f
 	};
+
 	glViewport(0, 0, env->userData.width, env->userData.height);
-	//glClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT);
 	glUseProgram ( env->handle.program);
 	glVertexAttribPointer(env->handle.color, 4, GL_FLOAT, GL_FALSE, 0, color);
-	glVertexAttribPointer(env->handle.position, 3, GL_FLOAT, GL_FALSE, 0, vertex);
-	glEnableVertexAttribArray(env->handle.position);
+	glVertexAttribPointer(/*env->handle.position*/0, 3, GL_FLOAT, GL_FALSE, 0, vertex);
+	glEnableVertexAttribArray(/*env->handle.position*/0);
 	glDrawArrays(GL_TRIANGLES, 0, 3);
+}
+
+static void onCreate(SdkEnv *env) {
+
+}
+
+static void onDestroy(SdkEnv *env) {
+
+}
+
+int setEglNativeWindow(SdkEnv *env, EGLNativeWindowType window)
+{
+	VALIDATE_NOT_NULL2(env, window);
+	env->egl.window = window;
+}
+
+void swapEglBuffers(SdkEnv *env)
+{
+	if (NULL != env) {
+		eglSwapBuffers(env->egl.display, env->egl.surface);
+	}
+}
+
+int setPlatformData(SdkEnv *env, void *data)
+{
+	VALIDATE_NOT_NULL2(env, data);
+	env->userData.platformData = data;
+}
+
+void onSdkCreate(SdkEnv *env)
+{
+	if (NULL != env && NULL != env->onCreate) {
+		env->onCreate(env);
+	}
+}
+
+void onSdkDraw(SdkEnv *env)
+{
+	if (NULL != env && NULL != env->onDraw) {
+		env->onDraw(env);
+	}
+}
+
+void onSdkDestroy(SdkEnv *env)
+{
+	if (NULL != env && NULL != env->onDestroy) {
+		env->onDestroy(env);
+	}
 }
