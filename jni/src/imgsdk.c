@@ -23,16 +23,6 @@ typedef struct {
     GLuint  paramCount;
 } UserCmd;
 
-enum {
-	ACTIVE_PATH,
-	ACTIVE_PIXEL
-};
-
-enum {
-	ANDROID_PLATFORM = 0,
-	IOS_PLATFORM     = 1
-};
-
 /**
  * User's image information
  */
@@ -113,6 +103,15 @@ typedef struct SdkEnv {
 static void onCreate(SdkEnv *env);
 static void onDraw(SdkEnv *env);
 static void onDestroy(SdkEnv *env);
+
+int sdkMain(SdkEnv *env)
+{
+	VALIDATE_NOT_NULL(env);
+
+	env->onCreate  = onCreate;
+	env->onDraw	   = onDraw;
+	env->onDestroy = onDestroy;
+}
 
 int main(int argc, char **argv) {
     if (2 != argc) {
@@ -561,17 +560,8 @@ static int findShaderHandles(SdkEnv *env) {
 /**
  * Create a default SdkEnv instance
  */
-SdkEnv* newDefaultSdkEnv() {
-    SdkEnv *env = (SdkEnv *)calloc(1, sizeof(SdkEnv));
-    if (NULL == env){
-        return NULL;
-    }
-    if (initDefaultEGL(env) < 0) {
-        LogE("Failed initEGL\n");
-        freeSdkEnv(env);
-        return NULL;
-    }
-
+int attachShader(SdkEnv *env) {
+	VALIDATE_NOT_NULL(env);
 	// log openGL information
     const GLubyte* version = glGetString(GL_VERSION);
     Log("%s\n", version);
@@ -580,34 +570,194 @@ SdkEnv* newDefaultSdkEnv() {
     int count = readFile(VERT_SHADER_FILE, &vertSource);
     if (count < 0) {
         LogE("Failed open vertex shader file:%s\n", VERT_SHADER_FILE);
-        freeSdkEnv(env);
-        return NULL;
+		return -1;
     }
     char *fragSource = NULL;
     count = readFile(FRAG_SHADER_FILE, &fragSource);
     if (count < 0) {
         LogE("Failed read fragment shader file:%s\n", FRAG_SHADER_FILE);
-        freeSdkEnv(env);
         free (vertSource);
-        return NULL;
+        return -1;
     }
 
     GLint program = createProgram(vertSource, fragSource);
     if (!program) {
         LogE("Failed createProgram\n");
-        freeSdkEnv(env);
         free (vertSource);
         free (fragSource);
-        return NULL;
+        return -1;
     }
 
     env->handle.program = program;
 	if (findShaderHandles(env) < 0) {
 		LogE("Failed findShaderHandles\n");
+		return -1;
 	}
+
+    return 0;
+}
+
+/**
+ * Create a blank SdkEnv instance
+ */
+SdkEnv* newBlankSdkEnv(int platform) 
+{
+	if (platform <= PLATFORM_OLD || platform >= PLATFORM_NEW) {
+		LogE("Invalid platform\n");
+		return NULL;
+	}
+
+	SdkEnv *env = (SdkEnv *)calloc(1, sizeof(SdkEnv));
+	return env;
+}
+
+/**
+ * Create a default SdkEnv instance
+ */
+SdkEnv* newDefaultSdkEnv() 
+{
+    SdkEnv *env = (SdkEnv *)calloc(1, sizeof(SdkEnv));
+    if (NULL == env){
+        return NULL;
+    }
+    if (initDefaultEGL(env) < 0) {
+        LogE("Failed initDefaultEGL\n");
+        freeSdkEnv(env);
+        return NULL;
+    }
+
+	if (attachShader(env) < 0) {
+		LogE("Failed attachShader\n");
+		freeSdkEnv(env);
+		return NULL;
+	}
+
+	env->status = SDK_STATUS_OK;
 
     return env;
 }
+
+/**
+ * Initialize EGL by specified params
+ */
+int initEGL(SdkEnv *env)
+{
+	VALIDATE_NOT_NULL(env);
+	VALIDATE_NOT_NULL(env->egl.window);
+
+    env->egl.display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (EGL_NO_DISPLAY == env->egl.display || EGL_SUCCESS != eglGetError()) {
+        LogE("Failed eglGetDisplay\n");
+        return -1;
+    }
+    EGLint major, minor;
+    if (!eglInitialize(env->egl.display, &major, &minor) || EGL_SUCCESS != eglGetError()) {
+        LogE("Failed eglInitialize\n");
+        return -1;
+    }
+    Log("EGL %d.%d\n", major, minor);
+
+    EGLConfig configs[2];
+    EGLint numConfigs;
+    if (eglGetConfigs(env->egl.display, configs, 2, &numConfigs) == EGL_FALSE || EGL_SUCCESS != eglGetError()) {
+        LogE("Failed eglGetConfigs\n");
+        return -1;
+    }
+
+    EGLint cfg_attrs[] = { 
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+        EGL_BLUE_SIZE,       8,
+        EGL_GREEN_SIZE,      8,
+        EGL_RED_SIZE,        8,
+        EGL_NONE
+    };
+	if (!eglChooseConfig(env->egl.display, cfg_attrs, configs, 2, &numConfigs) || numConfigs < 1) {
+		LogE("Failed eglChooseConfig\n");
+		return -1;
+	}
+
+	EGLint surface_attrs[] = {
+		EGL_WIDTH, SURFACE_MAX_WIDTH,   // pBuffer needs at least 1 x 1
+		EGL_HEIGHT,SURFACE_MAX_HEIGHT,  // pBuffer needs at least 1 x 1 
+		EGL_NONE
+	};
+    env->egl.surface = eglCreateWindowSurface(env->egl.display, configs[0], env->egl.window, surface_attrs);
+
+    if (EGL_NO_SURFACE == env->egl.surface) {
+        LogE("Failed create Pbuffer Surface, error code:%x\n", eglGetError());
+        return -1;
+    }
+
+    if (!eglBindAPI(EGL_OPENGL_ES_API)) {
+        LogE("Failed eglBindAPI\n");
+        return -1;
+    }
+
+    EGLint context_attrs[] = {
+        EGL_CONTEXT_CLIENT_VERSION, 2,
+        EGL_NONE
+    };
+    env->egl.context = eglCreateContext(env->egl.display, configs[0], EGL_NO_CONTEXT, context_attrs);
+    if (EGL_NO_CONTEXT == env->egl.context) {
+        LogE("Failed create context\n");
+        Log("error code:%x\n", eglGetError());
+        return -1;
+    }
+
+    if (!eglMakeCurrent(env->egl.display, env->egl.surface, env->egl.surface, env->egl.context)) {
+        LogE("Failed eglMakeCurrent\n");
+        EGLint errcode = eglGetError();
+        LogE("error code:%x\n", errcode);
+        return -1;
+    }
+
+    eglQuerySurface(env->egl.display, env->egl.surface, EGL_WIDTH, &env->egl.width);
+    eglQuerySurface(env->egl.display, env->egl.surface, EGL_HEIGHT, &env->egl.height);
+    Log("Max support %d x %d\n", env->egl.width, env->egl.height);
+
+    return 0;
+
+
+}
+
+/**
+ * Initialize the specified SdkEnv instance
+ */
+int initSdkEnv(SdkEnv *env) 
+{
+	VALIDATE_NOT_NULL(env);
+
+	if (env->type == SDK_STATUS_OK) {
+		LogE("SDK is already initialized\n");
+		return -1;
+	}
+
+	if (NULL == env->egl.window) {
+		LogE("Please call setEglNativeWindow first!\n");
+		return -1;
+	}
+
+	if (NULL == env->egl.window) {
+		LogE("Please call setPlatformData first!\n");
+		return -1;
+	}
+
+
+    if (initEGL(env) < 0) {
+        LogE("Failed initEGL\n");
+        return -1;
+    }
+
+	if (attachShader(env) < 0) {
+		LogE("Failed attachShader\n");
+		return -1;
+	}
+
+	env->status = SDK_STATUS_OK;
+
+    return 0;
+}
+
 
 int setEffectCmd(SdkEnv* env, const char* cmd)
 {

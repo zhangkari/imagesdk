@@ -8,9 +8,16 @@ LOCAL_MODULE 	:= imgsdk
 LOCAL_SRC_FILES := imgsdk.c \
 				   android_main.c
 
-LOCAL_CFLAGS	+= -pie -fPIE
+# Must enable when BUILD_EXECUTABLE
+# And disable when BUILD_SHARED_LIBRARY
+#LOCAL_CFLAGS	+= -pie -fPIE
+
 LOCAL_LDLIBS	:= -llog -lGLESv2 -lEGL -landroid
-LOCAL_LDFLAGS   += -pie -fPIE
+
+# Must enable when BUILD_EXECUTABLE
+# And disable when BUILD_SHARED_LIBRARY
+#LOCAL_LDFLAGS   += -pie -fPIE
+
 LOCAL_STATIC_LIBRARIES := android_native_app_glue
 
 include $(BUILD_SHARED_LIBRARY)

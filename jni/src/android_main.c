@@ -12,14 +12,11 @@
 #include <time.h>
 #include "imgsdk.h"
 
-#define LogI(...) ((void)__android_log_print(ANDROID_LOG_INFO, "ImgSdk", __VA_ARGS__))
-
 /*
  * HandleCommand()
  * Android callback for onAppCmd
  */
-static void HandleCommand ( struct android_app *pApp, int32_t cmd )
-{
+static void HandleCommand(struct android_app *pApp, int32_t cmd) {
 	SdkEnv *sdk = (SdkEnv *) pApp->userData;
 	switch ( cmd )
 	{
@@ -49,15 +46,26 @@ static void HandleCommand ( struct android_app *pApp, int32_t cmd )
  * android_main()
  * Main entrypoint for Android application
  */
-void android_main ( struct android_app *pApp )
+void android_main(struct android_app *pApp)
 {
 	// Make sure glue isn't stripped.
 	app_dummy();
-	SdkEnv *sdkEnv = newDefaultSdkEnv();
+
+	// Not use default SdkEnv
+	// default is used to render off screen
+	//	SdkEnv *sdkEnv = newDefaultSdkEnv();
+	SdkEnv *sdkEnv = newBlankSdkEnv(PLATFORM_ANDROID);
 	void *assetMgr = (void *)pApp->activity->assetManager;
 	setPlatformData(sdkEnv, assetMgr);
+	void *window = pApp->window;
+	setEglNativeWindow(sdkEnv, window);
+	if (initSdkEnv(sdkEnv) < 0) {
+		LogE("Failed initSdkEnv\n");
+	}
+
 	pApp->onAppCmd = HandleCommand;
 	pApp->userData = sdkEnv;
+	sdkMain(sdkEnv);
 	while (1) {
 		int ident;
 		int events;
@@ -70,6 +78,7 @@ void android_main ( struct android_app *pApp )
 				return;
 			}
 		}
+
 		onSdkDraw(sdkEnv);
 		swapEglBuffers(sdkEnv);
 	}

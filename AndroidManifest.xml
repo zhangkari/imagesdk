@@ -16,6 +16,7 @@
 		<activity 
 			android:name="android.app.NativeActivity"
 			android:label="ImageSDK" 
+			android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
 			android:launchMode="singleTask">
 			<meta-data android:name="android.app.lib_name"
 				android:value="imgsdk" />
