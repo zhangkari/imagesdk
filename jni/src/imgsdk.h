@@ -17,6 +17,7 @@
 
 #include <android/log.h>
 #include <EGL/egl.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #define VALIDATE_NOT_NULL(X) 						\
@@ -54,12 +55,12 @@ typedef struct {
 	char* base;
 } Bitmap_t;
 
-enum {
+typedef enum PlatformType {
 	PLATFORM_OLD     = -1,		// old platform
 	PLATFORM_ANDROID =  0,		// Android platform
 	PLATFORM_IOS     =  1,		// iOS platform
 	PLATFORM_NEW     =  2		// latest platform
-};
+} PlatformType;
 
 struct SdkEnv;
 typedef struct SdkEnv SdkEnv;
@@ -71,15 +72,17 @@ typedef struct SdkEnv SdkEnv;
 
 #define TAG "ImageSDK"
 
+/*
 #define Log(...) ((void)__android_log_print(INFO, TAG, __VA_ARGS__))
 #define LogD(...) ((void)__android_log_print(DEBUG, TAG, __VA_ARGS__))
 #define LogE(...) ((void)__android_log_print(ERROR, TAG, __VA_ARGS__))
+*/
 
-/*
+///*
 #define Log(...) ((void)printf( __VA_ARGS__))
 #define LogD(...) ((void)printf( __VA_ARGS__))
 #define LogE(...) ((void)printf( __VA_ARGS__))
-*/
+//*/
 
 
 #define VERT_SHADER_FILE "vert.shdr"
@@ -182,5 +185,10 @@ int parseEffectCmd(SdkEnv* env);
  * Read file to memory. Do not forget to free memory
  */
 int readFile(const char* path, char** mem);
+
+/**
+ * Get current time in milliseconds
+ */
+uint32_t getCurrentTime();
 
 #endif

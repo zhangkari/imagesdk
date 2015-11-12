@@ -8,9 +8,10 @@
 
 #include <malloc.h>
 #include <string.h>
+#include <sys/time.h>
 #include <android_native_app_glue.h>
 #include <GLES2/gl2.h>
-#include <png.h>
+#include "png.h"
 #include "imgsdk.h"
 
 /**
@@ -23,27 +24,36 @@ typedef struct {
     GLuint  paramCount;
 } UserCmd;
 
+typedef enum ActiveType {
+	ACTIVE_NONE  = 0,
+	ACTIVE_PATH  = 1,
+	ACTIVE_PIXEL = 2,
+} ActiveType;
+
 /**
  * User's image information
  */
 typedef struct {
-    GLuint    width;		// user's image width
-    GLuint    height;		// user's image height
-    GLchar   *path;			// user's image path (*.png)
-    GLchar   *pixel;		// user's image pixel
-	GLuint    active;		// which is active ( path or pixel) 
-	PixForm_e pixfmt;		// pixel format
-	int		  platform;		// 0 Android, 1 iOS
-	void	 *platformData; // AssetManager in Android
+    GLuint			width;			// user's image width
+    GLuint			height;			// user's image height
+    GLchar			*path;			// user's image path (*.png)
+    GLchar			*pixel;			// user's image pixel
+	ActiveType		active;			// which is active ( path or pixel) 
+	PixForm_e		pixfmt;			// pixel format
+	PlatformType	platform;		// 0 Android, 1 iOS
+	void			*platformData;	// AssetManager in Android
 } UserData;
 
 /**
  * Shader variable handle
+ * You may update me When you process image
  */
 typedef struct CommHandle {
-    GLuint program;
-    GLuint position;
-	GLuint color;
+    GLuint program;				// program handler
+	GLuint vertShader;			// vertex shader handle
+	GLuint fragShader;			// fragment shader handle
+    GLint position;				// attribute vec3 aPosition
+	GLint color;				// uniform vec4 uColor
 } CommHandle;
 
 /**
@@ -122,10 +132,13 @@ int main(int argc, char **argv) {
 
     Bitmap_t img;
     memset(&img, 0, sizeof(img));
+	uint32_t begin_t = getCurrentTime();
     if(read_png(argv[1], &img) < 0) {
         LogE("Failed read png\n");
         return -1;
     }
+	uint32_t finish_t = getCurrentTime();
+	LogD("Read %s cost %d ms\n", argv[1], (finish_t - begin_t));
 
     SdkEnv *env = newDefaultSdkEnv();
     if (NULL == env) {
@@ -136,25 +149,35 @@ int main(int argc, char **argv) {
 	env->userData.height = img.height;
 	env->userData.pixel  = img.base;
 	env->userData.pixfmt = img.form;
-	env->onCreate  = onCreate;
-	env->onDraw	   = onDraw;
-	env->onDestroy = onDestroy;
 
-	env->onCreate(env);
-	env->onDraw(env);
+	sdkMain(env);
+	onSdkCreate(env);
+	onSdkDraw(env);
 
+	begin_t = getCurrentTime();
 	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
     // copy pixels from GPU memory to CPU memory
-    glReadPixels(0, 1, img.width, img.height, GL_RGBA, GL_UNSIGNED_BYTE, img.base);
+	int x = 0;
+	int y = 0;
+    glReadPixels(x, y, img.width, img.height, GL_RGBA, GL_UNSIGNED_BYTE, img.base);
 
-    if (write_png("2.png", &img) < 0) {
+	finish_t = getCurrentTime();
+	LogD("Read pixel data cost %d ms\n", (finish_t - begin_t));
+
+	begin_t = getCurrentTime();
+
+#define DEST_PATH  "2.png"
+    if (write_png(DEST_PATH, &img) < 0) {
         LogE("Failed write png\n");
     }
 
+	finish_t = getCurrentTime();
+	LogD("Save %s cost %d ms\n", DEST_PATH, (finish_t - begin_t));
+
+
     freeBitmap(&img);
     freeSdkEnv(env);
-
-	env->onDestroy(env);
+	//onSdkDestroy(env);
 }
 
 int read_png(const char *path, Bitmap_t *mem)
@@ -348,10 +371,22 @@ static int loadShader(GLenum type, const char* source) {
 	return shader;
 }
 
-static int createProgram(const char* vertexSource, const char* fragSource)
+/**
+ * Create program and store shader handle in SdkEnv
+ * Return:
+ *		0  OK
+ *     -1 ERROR
+ */
+static int createProgram(SdkEnv *env, const char* vertexSource, const char* fragSource)
 {
-    VALIDATE_NOT_NULL2(vertexSource, fragSource);
-    int program = 0;
+    VALIDATE_NOT_NULL3(env, vertexSource, fragSource);
+
+	// Make sure to reset them
+	env->handle.program		= 0;
+	env->handle.vertShader	= 0;
+	env->handle.fragShader	= 0;
+
+	int program = 0;
     int vertShader = 0;
     int fragShader = 0;
 
@@ -395,21 +430,41 @@ static int createProgram(const char* vertexSource, const char* fragSource)
             break;
         }
 
-        return program;
+		glValidateProgram(program);
+		GLint success;
+		glGetProgramiv(program, GL_VALIDATE_STATUS, &success);
+		if (!success) {
+			memset(gLogBuff, 0, LOG_BUFF_SIZE);
+			glGetProgramInfoLog(program, LOG_BUFF_SIZE, &len, gLogBuff);
+			if (len > 0) {
+				Log("program is invalidate:%s\n", gLogBuff); 
+			} else {
+				LogE("Failed get program status\n");
+			}
+			break;
+		}
+
+		env->handle.program		= program;
+		env->handle.vertShader	= vertShader;
+		env->handle.fragShader	= fragShader;
+
+        return 0;
 
     } while (0);
 
-    if (!program) {
+    if (program) {
         glDeleteProgram(program);
     }
-    if (!vertShader) {
+
+    if (vertShader) {
         glDeleteShader(vertShader);
     }
-    if (!fragShader) {
+
+    if (fragShader) {
         glDeleteShader(fragShader);
     }
     
-    return 0;
+    return -1;
 }
 
 void freeBitmap(Bitmap_t *mem)
@@ -500,6 +555,22 @@ static int initDefaultEGL(SdkEnv *env) {
     return 0;
 }
 
+/**
+ * Release shader & program
+ */
+static int releaseShader(SdkEnv *env) {
+	VALIDATE_NOT_NULL(env);
+
+	glDetachShader(env->handle.program, env->handle.vertShader);
+	glDetachShader(env->handle.program, env->handle.fragShader);
+	glDeleteShader(env->handle.vertShader);
+	glDeleteShader(env->handle.fragShader);
+	glDeleteProgram(env->handle.program);
+}
+
+/**
+ * Free SdkEnv resource
+ */
 int freeSdkEnv(SdkEnv *env)
 {
     if (NULL == env) {
@@ -520,13 +591,14 @@ int freeSdkEnv(SdkEnv *env)
     env->egl.display = EGL_NO_DISPLAY;
     env->egl.context = EGL_NO_CONTEXT;
     env->egl.surface = EGL_NO_SURFACE;
-
-	if (NULL != env->userData.pixel) {
+	if (ACTIVE_PIXEL == env->userData.active 
+			&& NULL != env->userData.pixel) {
 		free (env->userData.pixel);
 		env->userData.pixel = NULL;
 	}
 
-	if (NULL != env->userData.path) {
+	if (ACTIVE_PATH == env->userData.active 
+			&& NULL != env->userData.path) {
 		free (env->userData.path);
 		env->userData.path = NULL;
 	}
@@ -535,6 +607,8 @@ int freeSdkEnv(SdkEnv *env)
 		free (env->userCmd.cmd);
 		env->userCmd.cmd = NULL;
 	}
+
+	releaseShader(env);
 
     free (env);
 }
@@ -552,7 +626,15 @@ static int findShaderHandles(SdkEnv *env) {
 	}
 
 	env->handle.position = glGetAttribLocation(env->handle.program, "aPosition");
-	env->handle.color = glGetAttribLocation(env->handle.program, "aColor");
+	if (env->handle.position < 0) {
+		LogE("Failed get aPosition location\n");
+	}
+
+	env->handle.color = glGetUniformLocation(env->handle.program, "uColor");
+	if (env->handle.color < 0) {
+		LogE("Failed get uColor location\n");
+	}
+
 
 	return 0;
 }
@@ -560,11 +642,16 @@ static int findShaderHandles(SdkEnv *env) {
 /**
  * Create a default SdkEnv instance
  */
-int attachShader(SdkEnv *env) {
+static int attachShader(SdkEnv *env) {
 	VALIDATE_NOT_NULL(env);
+
 	// log openGL information
     const GLubyte* version = glGetString(GL_VERSION);
     Log("%s\n", version);
+	const GLubyte* renderer = glGetString(GL_RENDERER);
+	Log("%s\n", renderer);
+	const GLubyte* vendor = glGetString(GL_VENDOR);
+	Log("%s\n", vendor);
 
     char *vertSource = NULL;
     int count = readFile(VERT_SHADER_FILE, &vertSource);
@@ -580,15 +667,13 @@ int attachShader(SdkEnv *env) {
         return -1;
     }
 
-    GLint program = createProgram(vertSource, fragSource);
-    if (!program) {
+    if(createProgram(env, vertSource, fragSource) < 0) {
         LogE("Failed createProgram\n");
         free (vertSource);
         free (fragSource);
         return -1;
     }
 
-    env->handle.program = program;
 	if (findShaderHandles(env) < 0) {
 		LogE("Failed findShaderHandles\n");
 		return -1;
@@ -596,6 +681,7 @@ int attachShader(SdkEnv *env) {
 
     return 0;
 }
+
 
 /**
  * Create a blank SdkEnv instance
@@ -781,16 +867,21 @@ static void onDraw(SdkEnv *env) {
 	};
 
 	GLfloat color[] = {
-	0.0f, 1.0f, 0.0f, 1.0f
+		0.0f, 0.0f, 1.0f, 1.0f
 	};
 
 	glViewport(0, 0, env->userData.width, env->userData.height);
 	glClear(GL_COLOR_BUFFER_BIT);
-	glUseProgram ( env->handle.program);
-	glVertexAttribPointer(env->handle.color, 4, GL_FLOAT, GL_FALSE, 0, color);
-	glVertexAttribPointer(/*env->handle.position*/0, 3, GL_FLOAT, GL_FALSE, 0, vertex);
-	glEnableVertexAttribArray(/*env->handle.position*/0);
+	glUseProgram(env->handle.program);
+
+	glVertexAttribPointer(env->handle.position, 3, GL_FLOAT, GL_FALSE, 0, vertex);
+	glEnableVertexAttribArray(env->handle.position);
+
+	glUniform4fv(env->handle.color, 1, color);
+
 	glDrawArrays(GL_TRIANGLES, 0, 3);
+	glDisableVertexAttribArray(env->handle.position);
+
 }
 
 static void onCreate(SdkEnv *env) {
@@ -839,4 +930,19 @@ void onSdkDestroy(SdkEnv *env)
 	if (NULL != env && NULL != env->onDestroy) {
 		env->onDestroy(env);
 	}
+}
+
+/**
+ * Get current time in milliseconds
+ * Return:
+ *		 > 0  OK
+ *		   0  ERROR
+ */
+uint32_t getCurrentTime() 
+{
+	struct timeval tv;
+	if (gettimeofday(&tv, NULL) < 0) {
+		return 0;
+	}
+	return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
