@@ -9,6 +9,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <sys/time.h>
+#include <android/asset_manager.h>
 #include <android_native_app_glue.h>
 #include <GLES2/gl2.h>
 #include "png.h"
@@ -42,6 +43,10 @@ typedef struct {
 	PixForm_e		pixfmt;			// pixel format
 	PlatformType	platform;		// 0 Android, 1 iOS
 	void			*platformData;	// AssetManager in Android
+    char            *vertSource;    // vertex shader source
+    int             nVertSource;    // length of vertSource
+    char            *fragSource;    // fragment shader source
+    int             nFragSource;    // length of fragSource
 } UserData;
 
 /**
@@ -121,6 +126,9 @@ int sdkMain(SdkEnv *env)
 	env->onCreate  = onCreate;
 	env->onDraw	   = onDraw;
 	env->onDestroy = onDestroy;
+
+	onSdkCreate(env);
+	onSdkDraw(env);
 }
 
 int main(int argc, char **argv) {
@@ -151,8 +159,6 @@ int main(int argc, char **argv) {
 	env->userData.pixfmt = img.form;
 
 	sdkMain(env);
-	onSdkCreate(env);
-	onSdkDraw(env);
 
 	begin_t = getCurrentTime();
 	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -642,42 +648,28 @@ static int findShaderHandles(SdkEnv *env) {
 /**
  * Create a default SdkEnv instance
  */
-static int attachShader(SdkEnv *env) {
-	VALIDATE_NOT_NULL(env);
+static int attachShader(SdkEnv *env, 
+        const char *vertSource, 
+        const char *fragSource) {
+    VALIDATE_NOT_NULL3(env, vertSource, fragSource);
 
-	// log openGL information
+    // log openGL information
     const GLubyte* version = glGetString(GL_VERSION);
     Log("%s\n", version);
-	const GLubyte* renderer = glGetString(GL_RENDERER);
-	Log("%s\n", renderer);
-	const GLubyte* vendor = glGetString(GL_VENDOR);
-	Log("%s\n", vendor);
-
-    char *vertSource = NULL;
-    int count = readFile(VERT_SHADER_FILE, &vertSource);
-    if (count < 0) {
-        LogE("Failed open vertex shader file:%s\n", VERT_SHADER_FILE);
-		return -1;
-    }
-    char *fragSource = NULL;
-    count = readFile(FRAG_SHADER_FILE, &fragSource);
-    if (count < 0) {
-        LogE("Failed read fragment shader file:%s\n", FRAG_SHADER_FILE);
-        free (vertSource);
-        return -1;
-    }
+    const GLubyte* renderer = glGetString(GL_RENDERER);
+    Log("%s\n", renderer);
+    const GLubyte* vendor = glGetString(GL_VENDOR);
+    Log("%s\n", vendor);
 
     if(createProgram(env, vertSource, fragSource) < 0) {
         LogE("Failed createProgram\n");
-        free (vertSource);
-        free (fragSource);
         return -1;
     }
 
-	if (findShaderHandles(env) < 0) {
-		LogE("Failed findShaderHandles\n");
-		return -1;
-	}
+    if (findShaderHandles(env) < 0) {
+        LogE("Failed findShaderHandles\n");
+        return -1;
+    }
 
     return 0;
 }
@@ -712,8 +704,33 @@ SdkEnv* newDefaultSdkEnv()
         return NULL;
     }
 
-	if (attachShader(env) < 0) {
+    char *vertSource = NULL;
+    int count = readFile(VERT_SHADER_FILE, &vertSource);
+    if (count < 0) {
+        LogE("Failed open vertex shader file:%s\n", VERT_SHADER_FILE);
+        freeSdkEnv(env);
+		return NULL;
+    }
+    Log("Read %s OK.\n", VERT_SHADER_FILE);
+    env->userData.nVertSource = count;
+    env->userData.vertSource = vertSource;
+
+    char *fragSource = NULL;
+    count = readFile(FRAG_SHADER_FILE, &fragSource);
+    if (count < 0) {
+        LogE("Failed read fragment shader file:%s\n", FRAG_SHADER_FILE);
+        free (vertSource);
+        freeSdkEnv(env);
+        return NULL;
+    }
+    env->userData.nFragSource = count;
+    env->userData.fragSource = fragSource;
+    Log("Read %s OK.\n", FRAG_SHADER_FILE);
+
+	if (attachShader(env, vertSource, fragSource) < 0) {
 		LogE("Failed attachShader\n");
+        free (vertSource);
+        free (fragSource);
 		freeSdkEnv(env);
 		return NULL;
 	}
@@ -763,14 +780,12 @@ int initEGL(SdkEnv *env)
 	}
 
 	EGLint surface_attrs[] = {
-		EGL_WIDTH, SURFACE_MAX_WIDTH,   // pBuffer needs at least 1 x 1
-		EGL_HEIGHT,SURFACE_MAX_HEIGHT,  // pBuffer needs at least 1 x 1 
 		EGL_NONE
 	};
     env->egl.surface = eglCreateWindowSurface(env->egl.display, configs[0], env->egl.window, surface_attrs);
 
     if (EGL_NO_SURFACE == env->egl.surface) {
-        LogE("Failed create Pbuffer Surface, error code:%x\n", eglGetError());
+        LogE("Failed create Window Surface, error code:%x\n", eglGetError());
         return -1;
     }
 
@@ -823,18 +838,80 @@ int initSdkEnv(SdkEnv *env)
 		return -1;
 	}
 
-	if (NULL == env->egl.window) {
+	if (NULL == env->userData.platformData) {
 		LogE("Please call setPlatformData first!\n");
 		return -1;
 	}
-
 
     if (initEGL(env) < 0) {
         LogE("Failed initEGL\n");
         return -1;
     }
 
-	if (attachShader(env) < 0) {
+    ANativeWindow *window = env->egl.window;
+    env->userData.width = ANativeWindow_getWidth(window);
+    env->userData.height = ANativeWindow_getHeight(window);
+
+    AAssetManager *assetMgr = (AAssetManager *)(env->userData.platformData);
+#define VERT_SHDR_NAME "vert.shdr"
+    AAsset *asset = AAssetManager_open(assetMgr, VERT_SHDR_NAME, AASSET_MODE_UNKNOWN);
+    if (NULL == asset) {
+        LogE("Failed open %s by asset manger\n", VERT_SHDR_NAME);
+        return -1;
+    }
+    size_t size = AAsset_getLength(asset);
+    if (size <= 0) {
+        LogE("%s length is invalid\n", VERT_SHDR_NAME);
+        return -1;
+    }
+    env->userData.nVertSource = size + 1;
+    char *vertSource = (char *)calloc(1, size + 1);
+    if (NULL == vertSource) {
+        LogE("Failed calloc memory for vertSource\n");
+        AAsset_close(asset);
+        return -1;
+    }
+    
+    if (AAsset_read(asset, vertSource, size) != size) {
+        LogE("Failed read %s\n", VERT_SHDR_NAME);
+        AAsset_close(asset);
+        free (vertSource);
+        return -1;
+    }
+    AAsset_close(asset);
+    env->userData.vertSource = vertSource; 
+    Log("Load %s OK.\n", VERT_SHDR_NAME);
+
+#define FRAG_SHDR_NAME "frag.shdr"
+    asset = AAssetManager_open(assetMgr, FRAG_SHDR_NAME, AASSET_MODE_UNKNOWN);
+    if (NULL == asset) {
+        LogE("Failed open %s by asset manger\n", FRAG_SHDR_NAME);
+        return -1;
+    }
+    size = AAsset_getLength(asset);
+    if (size <= 0) {
+        LogE("%s length is invalid\n", FRAG_SHDR_NAME);
+        return -1;
+    }
+    env->userData.nFragSource = size + 1;
+    char *fragSource = (char *)calloc(1, size + 1);
+    if (NULL == fragSource) {
+        LogE("Failed calloc memory for fragSource\n");
+        AAsset_close(asset);
+        return -1;
+    }
+    
+    if (AAsset_read(asset, fragSource, size) != size) {
+        LogE("Failed read %s\n", FRAG_SHDR_NAME);
+        AAsset_close(asset);
+        free (fragSource);
+        return -1;
+    }
+    AAsset_close(asset);
+    env->userData.fragSource = fragSource;
+    Log("Load %s OK.\n", FRAG_SHDR_NAME);
+
+	if (attachShader(env, vertSource, fragSource) < 0) {
 		LogE("Failed attachShader\n");
 		return -1;
 	}
@@ -843,7 +920,6 @@ int initSdkEnv(SdkEnv *env)
 
     return 0;
 }
-
 
 int setEffectCmd(SdkEnv* env, const char* cmd)
 {
@@ -901,6 +977,7 @@ int setEglNativeWindow(SdkEnv *env, EGLNativeWindowType window)
 void swapEglBuffers(SdkEnv *env)
 {
 	if (NULL != env) {
+        eglWaitClient();
 		eglSwapBuffers(env->egl.display, env->egl.surface);
 	}
 }

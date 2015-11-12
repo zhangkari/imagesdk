@@ -9,13 +9,13 @@
         android:targetSdkVersion="14" />
 
     <application 
-		android:label="ImageSDK"
+		android:label="@string/app_name"
 		android:hasCode="false"
 		android:debuggable="true">
 
 		<activity 
 			android:name="android.app.NativeActivity"
-			android:label="ImageSDK" 
+			android:label="@string/app_name" 
 			android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
 			android:launchMode="singleTask">
 			<meta-data android:name="android.app.lib_name"

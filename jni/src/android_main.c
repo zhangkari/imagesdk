@@ -24,9 +24,12 @@ static void HandleCommand(struct android_app *pApp, int32_t cmd) {
 			// the OS asked us to save the state of the app
 			break;
 
-		case APP_CMD_INIT_WINDOW:
-			setEglNativeWindow(sdk, pApp->window);
-			onSdkCreate(sdk);
+        case APP_CMD_INIT_WINDOW:
+            setEglNativeWindow(sdk, pApp->window);
+            if (initSdkEnv(sdk) < 0) {
+                LogE("Failed initSdkEnv\n");
+            }
+            sdkMain(sdk);
 			break;
 
 		case APP_CMD_TERM_WINDOW:
@@ -37,6 +40,7 @@ static void HandleCommand(struct android_app *pApp, int32_t cmd) {
 			break;
 
 		case APP_CMD_GAINED_FOCUS:
+            swapEglBuffers(sdk);
 			break;
 	}
 }
@@ -57,12 +61,7 @@ void android_main(struct android_app *pApp)
 	SdkEnv *sdkEnv = newBlankSdkEnv(PLATFORM_ANDROID);
 	void *assetMgr = (void *)pApp->activity->assetManager;
 	setPlatformData(sdkEnv, assetMgr);
-	void *window = pApp->window;
-	setEglNativeWindow(sdkEnv, window);
-	if (initSdkEnv(sdkEnv) < 0) {
-		LogE("Failed initSdkEnv\n");
-	}
-
+	
 	pApp->onAppCmd = HandleCommand;
 	pApp->userData = sdkEnv;
 	sdkMain(sdkEnv);
@@ -79,7 +78,10 @@ void android_main(struct android_app *pApp)
 			}
 		}
 
+        /*
 		onSdkDraw(sdkEnv);
 		swapEglBuffers(sdkEnv);
+        */
+
 	}
 }

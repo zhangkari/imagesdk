@@ -72,17 +72,17 @@ typedef struct SdkEnv SdkEnv;
 
 #define TAG "ImageSDK"
 
-/*
+///*
 #define Log(...) ((void)__android_log_print(INFO, TAG, __VA_ARGS__))
 #define LogD(...) ((void)__android_log_print(DEBUG, TAG, __VA_ARGS__))
 #define LogE(...) ((void)__android_log_print(ERROR, TAG, __VA_ARGS__))
-*/
+//*/
 
-///*
+/*
 #define Log(...) ((void)printf( __VA_ARGS__))
 #define LogD(...) ((void)printf( __VA_ARGS__))
 #define LogE(...) ((void)printf( __VA_ARGS__))
-//*/
+*/
 
 
 #define VERT_SHADER_FILE "vert.shdr"
@@ -121,10 +121,12 @@ SdkEnv* newBlankSdkEnv(int platform);
 
 /**
  * Initialize SdkEnv instance. Ignore me if created by newDefaultSdkEnv
+ * SdkEnv is used to render on-screen
  */ int initSdkEnv(SdkEnv *env);
 
 /**
  * Create a default SdkEnv instance. Do not call initSdkEnv next 
+ * Default SdkEnv is used to render off-screen
  */
 SdkEnv* newDefaultSdkEnv();
 
