@@ -22,18 +22,7 @@ build/
 
 # IDEA
 *.iml
-.idea/.name
-.idea/encodings.xml
-.idea/misc.xml
-.idea/modules.xml
-.idea/scopes/socpe_settings.xml
-.idea/vcs.xml
-.idea/workspace.xml
-.idea/libraries
-.idea/compiler.xml
-.idea/inspectionProfiles
-.idea/scopes
-
+.idea/
 
 # Built application files
 *.apk
