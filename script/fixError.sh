@@ -4,8 +4,3 @@
 # check whether libimgsdk.so, vert.shdr & frag.shdr
 # in right position
 #
-
-rm libs -rvf
-rm app/libs -rvf
-ndk-build
-ln -s libs app/
