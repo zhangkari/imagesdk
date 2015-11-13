@@ -2,5 +2,6 @@
 <resources>
 
     <string name="app_name">滤镜Sdk</string>
-   
+    <string name="load">加载</string>
+
 </resources>

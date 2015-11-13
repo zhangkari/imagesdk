@@ -2,6 +2,7 @@
 # generated dir
 obj
 bin
+gen
 
 # ant configuration files
 .ant-targets-build.xml
