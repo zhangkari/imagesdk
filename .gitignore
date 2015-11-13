@@ -10,3 +10,52 @@ bin
 # local configurations
 local.properties
 
+
+# OSX
+.DS_Store
+
+
+# Gradle files
+build/
+.gradle/
+*/build/
+
+
+# IDEA
+*.iml
+.idea/.name
+.idea/encodings.xml
+.idea/misc.xml
+.idea/modules.xml
+.idea/scopes/socpe_settings.xml
+.idea/vcs.xml
+.idea/workspace.xml
+.idea/libraries
+.idea/compiler.xml
+.idea/inspectionProfiles
+.idea/scopes
+
+
+# Built application files
+*.apk
+*.ap_
+
+
+# Files for the Dalvik VM
+*.dex
+
+
+# Java class files
+*.class
+
+
+# Generated files
+
+
+
+# Local configuration file (SDK path, etc)
+local.properties
+
+
+# Log files
+*.log
