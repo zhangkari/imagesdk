@@ -836,12 +836,6 @@ int initSdkEnv(SdkEnv *env)
 		return -1;
 	}
 
-    if ( (NULL == env->egl.window) && 
-            (env->userData.width <= 0 || env->userData.height <= 0) ) {
-        LogE("Must set userData width & height when egl.window = NULL \n");
-        return -1;
-    }
-
     if (NULL != env->egl.window) {
         if (initEGL(env) < 0) {
             LogE("Failed initEGL\n");
@@ -854,6 +848,13 @@ int initSdkEnv(SdkEnv *env)
 
         Log ("Native window %d x %d\n", 
                 env->userData.width, env->userData.height);
+
+        if (env->elg.width != env->userData.width ||
+            env->egl.height != env->userData.height) {
+            LogE("EGL and Native window size are not equal\n");
+            return -1;
+        }
+
     } 
     else {
         if (initDefaultEGL(env) < 0) {
@@ -861,6 +862,9 @@ int initSdkEnv(SdkEnv *env)
             return -1;
         }
         Log("Initialize Default EGL OK.\n");
+
+        env->userData.width = env->egl.width;
+        env->userData.height = env->egl.height;
     }
 
   
