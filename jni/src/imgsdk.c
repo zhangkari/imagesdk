@@ -849,7 +849,7 @@ int initSdkEnv(SdkEnv *env)
         Log ("Native window %d x %d\n", 
                 env->userData.width, env->userData.height);
 
-        if (env->elg.width != env->userData.width ||
+        if (env->egl.width != env->userData.width ||
             env->egl.height != env->userData.height) {
             LogE("EGL and Native window size are not equal\n");
             return -1;
