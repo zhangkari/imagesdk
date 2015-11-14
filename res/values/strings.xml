@@ -5,5 +5,6 @@
     <string name="load">加载</string>
     <string name="go">继续</string>
     <string name="run">运行</string>
+    <string name="switch_next">切换</string>
 
 </resources>

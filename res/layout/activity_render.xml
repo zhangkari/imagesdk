@@ -20,7 +20,7 @@
             android:layout_alignParentBottom="true"
             android:layout_centerHorizontal="true"
             android:background="@android:color/transparent"
-            android:text="@string/run"
+            android:text="@string/switch_next"
             android:textColor="@android:color/white" />
     </RelativeLayout>
 </FrameLayout>
