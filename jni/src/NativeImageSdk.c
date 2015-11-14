@@ -188,9 +188,7 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_executeCmd
 		return;
 	}
 
-	// TODO
-
-	
+    onSdkDraw (sdk);
 	swapEglBuffers(sdk);
 
 	Log("---- executeCmd() in native method ----\n");

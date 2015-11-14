@@ -27,7 +27,7 @@ typedef struct {
 
 typedef enum ActiveType {
 	ACTIVE_NONE  = 0,
-	ACTIVE_PATH  = 1,
+	ACTIVE_PARAM = 1,
 	ACTIVE_PIXEL = 2,
 } ActiveType;
 
@@ -37,9 +37,9 @@ typedef enum ActiveType {
 typedef struct {
     GLuint			width;			// user's image width
     GLuint			height;			// user's image height
-    GLchar			*path;			// user's image path (*.png)
+    GLchar			*param;			// user's parameter
     GLchar			*pixel;			// user's image pixel
-	ActiveType		active;			// which is active ( path or pixel) 
+	ActiveType		active;			// which is active ( param or pixel) 
 	PixForm_e		pixfmt;			// pixel format
 	PlatformType	platform;		// 0 Android, 1 iOS
 	void			*platformData;	// AssetManager in Android
@@ -59,6 +59,7 @@ typedef struct CommHandle {
 	GLuint fragShader;			// fragment shader handle
     GLint position;				// attribute vec3 aPosition
 	GLint color;				// uniform vec4 uColor
+    GLuint texture;             // texture handle
 } CommHandle;
 
 /**
@@ -128,7 +129,6 @@ int sdkMain(SdkEnv *env)
 	env->onDestroy = onDestroy;
 
 	onSdkCreate(env);
-	onSdkDraw(env);
 }
 
 int main(int argc, char **argv) {
@@ -138,50 +138,35 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    Bitmap_t img;
-    memset(&img, 0, sizeof(img));
-	uint32_t begin_t = getCurrentTime();
-    if(read_png(argv[1], &img) < 0) {
-        LogE("Failed read png\n");
-        return -1;
-    }
-	uint32_t finish_t = getCurrentTime();
-	LogD("Read %s cost %d ms\n", argv[1], (finish_t - begin_t));
-
     SdkEnv *env = newDefaultSdkEnv();
     if (NULL == env) {
         LogE("Failed get SdkEnv instance\n");
     }
 
-	env->userData.width  = img.width;
-	env->userData.height = img.height;
-	env->userData.pixel  = img.base;
-	env->userData.pixfmt = img.form;
+	sdkMain (env);
+    setEffectCmd (env, "test cmd ");
+    onSdkDraw (env);
 
-	sdkMain(env);
-
-	begin_t = getCurrentTime();
+	uint32_t begin_t = getCurrentTime();
 	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
     // copy pixels from GPU memory to CPU memory
 	int x = 0;
 	int y = 0;
-    glReadPixels(x, y, img.width, img.height, GL_RGBA, GL_UNSIGNED_BYTE, img.base);
+    glReadPixels(x, y, env->userData.width, env->userData.height, GL_RGBA, GL_UNSIGNED_BYTE, env->userData.pixel);
 
-	finish_t = getCurrentTime();
+	uint32_t finish_t = getCurrentTime();
 	LogD("Read pixel data cost %d ms\n", (finish_t - begin_t));
 
 	begin_t = getCurrentTime();
 
 #define DEST_PATH  "2.png"
-    if (write_png(DEST_PATH, &img) < 0) {
+    if (write_png(DEST_PATH, (Bitmap_t *)env->userData.param) < 0) {
         LogE("Failed write png\n");
     }
 
 	finish_t = getCurrentTime();
 	LogD("Save %s cost %d ms\n", DEST_PATH, (finish_t - begin_t));
 
-
-    freeBitmap(&img);
     freeSdkEnv(env);
 	//onSdkDestroy(env);
 }
@@ -603,10 +588,10 @@ int freeSdkEnv(SdkEnv *env)
 		env->userData.pixel = NULL;
 	}
 
-	if (ACTIVE_PATH == env->userData.active 
-			&& NULL != env->userData.path) {
-		free (env->userData.path);
-		env->userData.path = NULL;
+	if (ACTIVE_PARAM == env->userData.active 
+			&& NULL != env->userData.param) {
+		free (env->userData.param);
+		env->userData.param = NULL;
 	}
 
 	if (NULL != env->userCmd.cmd) {
@@ -941,7 +926,52 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
 {
     VALIDATE_NOT_NULL2(env, cmd);
 
-    return -1;
+    // TODO
+    // parseEffectCmd
+
+    Log ("efffect command:%s\n", cmd);
+
+    // TODO
+
+    if (NULL == env->userCmd.cmd || strcmp(cmd, env->userCmd.cmd) != 0) {
+        Bitmap_t *img = (Bitmap_t *) calloc(1, sizeof(Bitmap_t));
+        if (NULL == img) {
+            Log("Failed calloc mem or bitmap\n");
+            return -1;
+        }
+
+        uint32_t begin_t = getCurrentTime();
+
+#define PATH "/data/local/tmp/bg.png"
+
+        if(read_png(PATH, img) < 0) {
+            LogE("Failed read png\n");
+            return -1;
+        }
+        uint32_t end_t = getCurrentTime();
+        Log("Read %s cost %d ms\n", PATH, end_t - begin_t);
+
+        if (NULL != env->userCmd.cmd) {
+            free (env->userCmd.cmd);
+            env->userCmd.cmd = NULL;
+        }
+        env->userCmd.cmd = strdup (cmd);
+        env->userData.param = (void *) img;
+        env->userData.active = ACTIVE_PARAM;
+
+        // TODO
+        GLuint texture;
+        glGenTextures(1, &texture);
+        int level = 0;
+#define BORDER 0
+        glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, img->width, img->height, BORDER, GL_RGBA, GL_UNSIGNED_BYTE, img->base);
+        env->handle.texture = texture;
+
+    } else {
+        Log ("Cmd is the same\n");
+    }
+
+    return 0;
 }
 
 int parseEffectCmd(SdkEnv* env)
@@ -952,17 +982,28 @@ int parseEffectCmd(SdkEnv* env)
 }
 
 static void onDraw(SdkEnv *env) {
+
+    /*
 	GLfloat vertex[] = {
 		 0.0,   0.5f, 0.0f,
 		-0.5f, -0.5f, 0.0f,
 		 0.5f, -0.5f, 0.0f
 	};
+    */
+    GLfloat vertex[] = {
+        -0.9,  0.9, 0.0f,
+        -0.9, -0.9, 0.0f,
+        0.9, -0.9, 0,
+        0.9,  0.9, 0.0f
+    };
 
 	GLfloat color[] = {
 		0.0f, 0.0f, 1.0f, 1.0f
 	};
 
-	glViewport(0, 0, env->userData.width, env->userData.height);
+    glBindTexture(GL_TEXTURE_2D, env->handle.texture);
+
+	glViewport(0, 0, env->egl.width, env->egl.height);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glUseProgram(env->handle.program);
 
@@ -971,7 +1012,7 @@ static void onDraw(SdkEnv *env) {
 
 	glUniform4fv(env->handle.color, 1, color);
 
-	glDrawArrays(GL_TRIANGLES, 0, 3);
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	glDisableVertexAttribArray(env->handle.position);
 
 }
