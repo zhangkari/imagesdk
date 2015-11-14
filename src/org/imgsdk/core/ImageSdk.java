@@ -1,5 +1,7 @@
 package org.imgsdk.core;
 
+import android.content.Context;
+
 /**
  * Created by ws-kari on 15-11-13.
  */
@@ -10,8 +12,8 @@ public class ImageSdk {
         System.loadLibrary("imgsdk");
     }
 
-    public void onCreate() {
-        mPointer = NativeImageSdk.initSDK();
+    public void onCreate(Context context) {
+        mPointer = NativeImageSdk.initSDK(context);
     }
 
     public void onDestroy() {

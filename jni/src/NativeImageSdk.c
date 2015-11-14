@@ -5,6 +5,7 @@
  *******************************/
 
 #include <stdint.h>
+#include <android/asset_manager_jni.h>
 #include "NativeImageSdk.h"
 #include "imgsdk.h"
 #include "jniHelper.h"
@@ -15,20 +16,45 @@
  * Signature: ()J
  */
 jlong JNICALL Java_org_imgsdk_core_NativeImageSdk_initSDK
-  (JNIEnv *env, jobject thiz)
+  (JNIEnv *env, jobject thiz, jobject jcontext)
 {
 	Log("++++ initSDK() in native method ++++\n");
 
-    LogE("We need Context to get AssetManager\n");
-    // TODO
+	if (NULL == jcontext) {
+		LogE("NULL pointer exception:context = NULL\n");
+		return 0;
+	}
 
-	SdkEnv *sdk = newDefaultSdkEnv();
+	jclass cls = (*env)->GetObjectClass(env, jcontext);
+	jmethodID mid = (*env)->GetMethodID(env, cls, 
+			"getAssets", 
+			"()Landroid/content/res/AssetManager;");
+	jobject jassetMgr = (*env)->CallObjectMethod(env, jcontext, mid);
+	if (NULL == jassetMgr) {
+		LogE("Failed get java asset manager\n");
+		return 0;
+	}
+
+	AAssetManager *assetMgr = AAssetManager_fromJava(env, jassetMgr);
+	if (NULL == assetMgr) {
+		LogE("Failed get native asset manager\n");
+		return 0;
+	}
+
+	SdkEnv *sdk = newBlankSdkEnv(PLATFORM_ANDROID);
 	if (NULL == sdk) {
-		LogE("Failed newDefaultSdkEnv()\n");
+		LogE("Failed newBlankSdkEnv\n");
         return 0;
 	}
 
-	jlong ptr = (jlong)((intptr_t)sdk);
+	setPlatformData(sdk, assetMgr);
+	if (initSdkEnv (sdk) < 0) {
+		LogE("Failed initSdkEnv \n");
+		freeSdkEnv (sdk);
+		return 0;
+	}
+
+	jlong ptr = (jlong) ( (intptr_t)sdk );
 	Log("---- initSDK() in native method ----\n");
 	return ptr;
 }
@@ -90,7 +116,7 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_executeCmd
 	Log("++++ executeCmd() in native method ++++\n");
 
 	SdkEnv *sdk = (SdkEnv *) ((intptr_t) ptr);
-	if (NULL == env) {
+	if (NULL == sdk) {
 		LogE("NULL pointer exception\n");
 		return;
 	}

@@ -20,7 +20,7 @@ public class HomeActivity extends Activity implements View.OnClickListener {
         findViews();
         setListeners();
         mImageSdk = new ImageSdk();
-        mImageSdk.onCreate();
+        mImageSdk.onCreate(this);
     }
 
     private void findViews() {

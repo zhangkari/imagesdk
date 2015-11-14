@@ -17,9 +17,9 @@ char* jstring2string(JNIEnv *env, jstring jstr)
 {
 	char *cmd = NULL;
 	jclass clsStr = (jclass) (*env)->FindClass(env, "java/lang/String");
-	jstring strEncode = (jstring) (*env)->NewStringUTF(env, "utf-8");
+	jstring strEncode = (jstring) (*env)->NewStringUTF(env, "UTF-8");
 	jmethodID mid = (jmethodID) (*env)->GetMethodID(env, clsStr, "getBytes", "(Ljava/lang/String;)[B");
-	jbyteArray byteArr = (jbyteArray) (*env)->CallObjectMethod(jstr, mid, strEncode);
+	jbyteArray byteArr = (jbyteArray) (*env)->CallObjectMethod(env, jstr, mid, strEncode);
 	jsize len = (*env)->GetArrayLength(env, byteArr);
 	jbyte *bp = (jbyte *) (*env)->GetByteArrayElements(env, byteArr, JNI_FALSE);
 	if (len > 0) {
@@ -28,7 +28,9 @@ char* jstring2string(JNIEnv *env, jstring jstr)
 	} else {
 		LogE("Failed env->GetByteArrayElements\n");
 	}
-	(*env)->ReleaseByteArrayElements(env, byteArr, bp, 0);
+
+	(*env)->ReleaseByteArrayElements (env, byteArr, bp, 0);
+	(*env)->DeleteLocalRef (env, strEncode);
 
 	return cmd;
 }
@@ -40,11 +42,13 @@ jstring string2jstring(JNIEnv *env, const char *cmd)
 {
 	jclass clsStr = (jclass) (*env)->FindClass(env, "java/lang/String");
 	jmethodID mid = (jmethodID) (*env)->GetMethodID(env, clsStr, "<init>", "([BLjava/lang/String;)V");
-	jstring strEncode = (jstring) (*env)->NewStringUTF(env, "utf-8");
+	jstring strEncode = (jstring) (*env)->NewStringUTF(env, "UTF-8");
 
 	int len = strlen(cmd);
 	jbyteArray byteArr = (jbyteArray) (*env)->NewByteArray(env, len);
-	(*env)->SetByteArrayRegion(env, byteArr, 0, len, (jbyte *)cmd);
+	(*env)->SetByteArrayRegion (env, byteArr, 0, len, (jbyte *)cmd);
+
+	(*env)->DeleteLocalRef (env, strEncode);
 
 	return (jstring) (*env)->NewObject(clsStr, mid, byteArr, strEncode);
 }
