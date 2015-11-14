@@ -556,7 +556,7 @@ static int initDefaultEGL(SdkEnv *env) {
 
     eglQuerySurface(env->egl.display, env->egl.surface, EGL_WIDTH, &env->egl.width);
     eglQuerySurface(env->egl.display, env->egl.surface, EGL_HEIGHT, &env->egl.height);
-    Log("Max support %d x %d\n", env->egl.width, env->egl.height);
+    Log("EGL Pbuffer Surface %d x %d\n", env->egl.width, env->egl.height);
 
     return 0;
 }
@@ -814,11 +814,9 @@ int initEGL(SdkEnv *env)
 
     eglQuerySurface(env->egl.display, env->egl.surface, EGL_WIDTH, &env->egl.width);
     eglQuerySurface(env->egl.display, env->egl.surface, EGL_HEIGHT, &env->egl.height);
-    Log("Max support %d x %d\n", env->egl.width, env->egl.height);
+    Log("EGL Window Surface %d x %d\n", env->egl.width, env->egl.height);
 
     return 0;
-
-
 }
 
 /**
@@ -833,25 +831,43 @@ int initSdkEnv(SdkEnv *env)
 		return -1;
 	}
 
-	if (NULL == env->egl.window) {
-		LogE("Please call setEglNativeWindow first!\n");
-		return -1;
-	}
-
 	if (NULL == env->userData.platformData) {
 		LogE("Please call setPlatformData first!\n");
 		return -1;
 	}
 
-    if (initEGL(env) < 0) {
-        LogE("Failed initEGL\n");
-        return -1;
+    if (NULL != env->egl.window) {
+        if (initEGL(env) < 0) {
+            LogE("Failed initEGL\n");
+            return -1;
+        }
+        Log("Initialize EGL OK.\n");
+        ANativeWindow *window = env->egl.window;
+        env->userData.width = ANativeWindow_getWidth(window);
+        env->userData.height = ANativeWindow_getHeight(window);
+
+        Log ("Native window %d x %d\n", 
+                env->userData.width, env->userData.height);
+
+        if (env->elg.width != env->userData.width ||
+            env->egl.height != env->userData.height) {
+            LogE("EGL and Native window size are not equal\n");
+            return -1;
+        }
+
+    } 
+    else {
+        if (initDefaultEGL(env) < 0) {
+            LogE("Failed initDefaultEGL\n");
+            return -1;
+        }
+        Log("Initialize Default EGL OK.\n");
+
+        env->userData.width = env->egl.width;
+        env->userData.height = env->egl.height;
     }
 
-    ANativeWindow *window = env->egl.window;
-    env->userData.width = ANativeWindow_getWidth(window);
-    env->userData.height = ANativeWindow_getHeight(window);
-
+  
     AAssetManager *assetMgr = (AAssetManager *)(env->userData.platformData);
 #define VERT_SHDR_NAME "vert.shdr"
     AAsset *asset = AAssetManager_open(assetMgr, VERT_SHDR_NAME, AASSET_MODE_UNKNOWN);

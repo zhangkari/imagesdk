@@ -19,12 +19,16 @@ jlong JNICALL Java_org_imgsdk_core_NativeImageSdk_initSDK
 {
 	Log("++++ initSDK() in native method ++++\n");
 
+    LogE("We need Context to get AssetManager\n");
+    // TODO
+
 	SdkEnv *sdk = newDefaultSdkEnv();
 	if (NULL == sdk) {
 		LogE("Failed newDefaultSdkEnv()\n");
+        return 0;
 	}
-	jlong ptr = (jlong)((intptr_t)sdk);
 
+	jlong ptr = (jlong)((intptr_t)sdk);
 	Log("---- initSDK() in native method ----\n");
 	return ptr;
 }
@@ -39,8 +43,10 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_freeSDK
 {
 	Log("++++ freeSDK() in native method ++++\n");
 
-	SdkEnv *sdk = (SdkEnv *)((intptr_t) ptr);
-	freeSdkEnv(sdk);
+    SdkEnv *sdk = (SdkEnv *)((intptr_t) ptr);
+    if (NULL != sdk) {
+        freeSdkEnv(sdk);
+    }
 
 	Log("---- freeSDK() in native method ----\n");
 }
@@ -62,6 +68,13 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_setEffectCmd
 	}
 
 	char *cmd = jstring2string(env, jcommand);
+    if (NULL == cmd) {
+        LogE("Effect cmd is NULL\n");
+        return;
+    }
+
+    Log("EffectCmd = %s\n", cmd);
+
 	setEffectCmd(sdk, cmd);
 	Log("---- setEffectCmd() in native method ----\n");
 }

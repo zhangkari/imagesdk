@@ -37,6 +37,8 @@ build/
 # Java class files
 *.class
 
+# NDK output
+*.so
 
 # Generated files
 
