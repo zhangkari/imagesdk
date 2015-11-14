@@ -17,6 +17,15 @@ JNIEXPORT jlong JNICALL Java_org_imgsdk_core_NativeImageSdk_initSDK
 
 /*
  * Class:     org_imgsdk_core_NativeImageSdk
+ * Method:    initRenderSDK
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_org_imgsdk_core_NativeImageSdk_initRenderSDK
+  (JNIEnv *, jobject, jobject, jobject);
+
+
+/*
+ * Class:     org_imgsdk_core_NativeImageSdk
  * Method:    freeSDK
  * Signature: (J)V
  */

@@ -3,5 +3,7 @@
 
     <string name="app_name">滤镜Sdk</string>
     <string name="load">加载</string>
+    <string name="go">继续</string>
+    <string name="run">运行</string>
 
 </resources>
