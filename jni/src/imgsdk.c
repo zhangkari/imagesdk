@@ -59,7 +59,9 @@ typedef struct CommHandle {
 	GLuint fragShader;			// fragment shader handle
     GLint position;				// attribute vec3 aPosition
 	GLint color;				// uniform vec4 uColor
-    GLuint texture;             // texture handle
+    GLuint textureId;           // texture handle
+    GLuint sampler2D;           // sampler handler
+    GLuint texCoord;            // texture coordinate
 } CommHandle;
 
 /**
@@ -626,6 +628,15 @@ static int findShaderHandles(SdkEnv *env) {
 		LogE("Failed get uColor location\n");
 	}
 
+	env->handle.sampler2D = glGetUniformLocation(env->handle.program, "uSampler2D");
+	if (env->handle.sampler2D < 0) {
+		LogE("Failed get uSampler2D location\n");
+	}
+
+    env->handle.texCoord = glGetAttribLocation(env->handle.program, "aTexCoord");
+    if (env->handle.texCoord < 0) {
+        LogE("Failed get aTexCoord location\n");
+    }
 
 	return 0;
 }
@@ -965,7 +976,8 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
         int level = 0;
 #define BORDER 0
         glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, img->width, img->height, BORDER, GL_RGBA, GL_UNSIGNED_BYTE, img->base);
-        env->handle.texture = texture;
+        env->handle.textureId = texture;
+        glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
     } else {
         Log ("Cmd is the same\n");
@@ -997,18 +1009,31 @@ static void onDraw(SdkEnv *env) {
         0.9,  0.9, 0.0f
     };
 
+    GLfloat texCoord[] = {
+        0.0, 1.0,
+        0.0, 0.0,
+        1.0, 0.0,
+        1.0, 1.0
+    };
+
 	GLfloat color[] = {
 		0.0f, 0.0f, 1.0f, 1.0f
 	};
-
-    glBindTexture(GL_TEXTURE_2D, env->handle.texture);
-
+  
 	glViewport(0, 0, env->egl.width, env->egl.height);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glUseProgram(env->handle.program);
 
+    glActiveTexture (GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, env->handle.textureId);
+    glUniform1i (env->handle.sampler2D, 0);
+
+
 	glVertexAttribPointer(env->handle.position, 3, GL_FLOAT, GL_FALSE, 0, vertex);
 	glEnableVertexAttribArray(env->handle.position);
+
+	glVertexAttribPointer(env->handle.texCoord, 2, GL_FLOAT, GL_FALSE, 0, texCoord);
+	glEnableVertexAttribArray(env->handle.texCoord);
 
 	glUniform4fv(env->handle.color, 1, color);
 

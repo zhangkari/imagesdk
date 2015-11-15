@@ -6,14 +6,12 @@
  * 
  *******************************/
 
-//varying highp vec4 vColor;
-//varying highp vec2 vTextureCoord;
-//uniform sampler2D sTexture;
-uniform mediump vec4 uColor;
+uniform sampler2D uSampler2D;
+//uniform mediump vec4 uColor;
+varying mediump vec2 vTexCoord;
 
 void main()
 {
-//	gl_FragColor = texture2D(sTexture, vTextureCoord);
-//	gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-	gl_FragColor = uColor;
+//	gl_FragColor = uColor;
+	gl_FragColor = texture2D(uSampler2D, vTexCoord);
 }
