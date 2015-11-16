@@ -45,16 +45,19 @@
 
 #define TAG "ImageSDK"
 
-///*
+#ifdef _ANDROID_
+// Android log
 #define Log(...) ((void)__android_log_print(INFO, TAG, __VA_ARGS__))
 #define LogD(...) ((void)__android_log_print(DEBUG, TAG, __VA_ARGS__))
 #define LogE(...) ((void)__android_log_print(ERROR, TAG, __VA_ARGS__))
-//*/
-
-/*
+#else
+// output to stdout
 #define Log(...) ((void)printf( __VA_ARGS__))
 #define LogD(...) ((void)printf( __VA_ARGS__))
 #define LogE(...) ((void)printf( __VA_ARGS__))
-*/
+#endif
+
+#define LOG_ENTRY Log("++++ %s ++++\n", __func__);
+#define LOG_EXIT Log("---- %s ----\n", __func__);
 
 #endif

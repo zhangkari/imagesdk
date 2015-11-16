@@ -471,12 +471,15 @@ void freeBitmap(Bitmap_t *mem)
 }
 
 static int initDefaultEGL(SdkEnv *env) {
+
     VALIDATE_NOT_NULL(env);
+
     env->egl.display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if (EGL_NO_DISPLAY == env->egl.display || EGL_SUCCESS != eglGetError()) {
         LogE("Failed eglGetDisplay\n");
         return -1;
     }
+
     EGLint major, minor;
     if (!eglInitialize(env->egl.display, &major, &minor) || EGL_SUCCESS != eglGetError()) {
         LogE("Failed eglInitialize\n");
@@ -816,11 +819,57 @@ int initEGL(SdkEnv *env)
 }
 
 /**
+ * Read file in assets
+ * Return 
+ *		  -1 ERROR
+ *      >= 0 file length
+ */
+static int readFileFromAssets(const SdkEnv *sdk, 
+		const char *fname, 
+		char **mem) {
+
+	VALIDATE_NOT_NULL2(sdk, sdk->userData.platformData);
+	VALIDATE_NOT_NULL2(fname, mem);
+
+	AAssetManager *assetMgr = (AAssetManager *)(sdk->userData.platformData);
+	AAsset *asset = AAssetManager_open(assetMgr, fname, AASSET_MODE_UNKNOWN);
+	if (NULL == asset) {
+		LogE("Failed open %s by asset manger\n", fname);
+		return -1;
+	}
+	size_t size = AAsset_getLength(asset);
+	if (size <= 0) {
+		LogE("%s length is invalid (file length must > 0)\n", fname);
+		AAsset_close (asset);
+		return -1;
+	}
+	*mem = calloc(1, size + 1);
+	if (NULL == *mem) {
+		LogE("Failed calloc memory for %s\n", fname);
+		AAsset_close (asset);
+		return -1;
+	}
+
+	if (AAsset_read(asset, *mem, size) != size) {
+		LogE("Failed read %s\n", fname);
+		AAsset_close(asset);
+		free (*mem);
+		*mem = NULL;
+		return -1;
+	}
+
+	AAsset_close(asset);
+	return size + 1;
+}
+
+/**
  * Initialize the specified SdkEnv instance
  */
 int initSdkEnv(SdkEnv *env) 
 {
 	VALIDATE_NOT_NULL(env);
+
+	uint32_t t_begin, t_finish;
 
 	if (env->type == SDK_STATUS_OK) {
 		LogE("SDK is already initialized\n");
@@ -833,11 +882,13 @@ int initSdkEnv(SdkEnv *env)
 	}
 
     if (NULL != env->egl.window) {
+		t_begin = getCurrentTime();
         if (initEGL(env) < 0) {
             LogE("Failed initEGL\n");
             return -1;
         }
-        Log("Initialize EGL OK.\n");
+		t_finish = getCurrentTime();
+        Log("Initialize EGL OK cost %d ms.\n", t_finish - t_begin);
         ANativeWindow *window = env->egl.window;
         env->userData.width = ANativeWindow_getWidth(window);
         env->userData.height = ANativeWindow_getHeight(window);
@@ -853,75 +904,41 @@ int initSdkEnv(SdkEnv *env)
 
     } 
     else {
+		t_begin = getCurrentTime();
         if (initDefaultEGL(env) < 0) {
             LogE("Failed initDefaultEGL\n");
             return -1;
         }
-        Log("Initialize Default EGL OK.\n");
+		t_finish = getCurrentTime();
+        Log("Initialize Default EGL OK cost %d ms.\n", t_finish - t_begin);
 
         env->userData.width = env->egl.width;
         env->userData.height = env->egl.height;
     }
 
   
-    AAssetManager *assetMgr = (AAssetManager *)(env->userData.platformData);
 #define VERT_SHDR_NAME "vert.shdr"
-    AAsset *asset = AAssetManager_open(assetMgr, VERT_SHDR_NAME, AASSET_MODE_UNKNOWN);
-    if (NULL == asset) {
-        LogE("Failed open %s by asset manger\n", VERT_SHDR_NAME);
-        return -1;
-    }
-    size_t size = AAsset_getLength(asset);
-    if (size <= 0) {
-        LogE("%s length is invalid\n", VERT_SHDR_NAME);
-        return -1;
-    }
-    env->userData.nVertSource = size + 1;
-    char *vertSource = (char *)calloc(1, size + 1);
-    if (NULL == vertSource) {
-        LogE("Failed calloc memory for vertSource\n");
-        AAsset_close(asset);
-        return -1;
-    }
-    
-    if (AAsset_read(asset, vertSource, size) != size) {
-        LogE("Failed read %s\n", VERT_SHDR_NAME);
-        AAsset_close(asset);
-        free (vertSource);
-        return -1;
-    }
-    AAsset_close(asset);
+	t_begin = getCurrentTime();
+	char *vertSource = NULL;
+	int nVertSource = readFileFromAssets (env, VERT_SHDR_NAME, &vertSource);
+	if (nVertSource < 0) {
+		LogE ("Failed read assets file:%s\n", VERT_SHDR_NAME);
+	}
+	env->userData.nVertSource = nVertSource;
     env->userData.vertSource = vertSource; 
-    Log("Load %s OK.\n", VERT_SHDR_NAME);
+	t_finish = getCurrentTime();
+    Log("Load %s OK cost %d ms.\n", VERT_SHDR_NAME, t_finish - t_begin);
 
 #define FRAG_SHDR_NAME "frag.shdr"
-    asset = AAssetManager_open(assetMgr, FRAG_SHDR_NAME, AASSET_MODE_UNKNOWN);
-    if (NULL == asset) {
-        LogE("Failed open %s by asset manger\n", FRAG_SHDR_NAME);
-        return -1;
-    }
-    size = AAsset_getLength(asset);
-    if (size <= 0) {
-        LogE("%s length is invalid\n", FRAG_SHDR_NAME);
-        return -1;
-    }
-    env->userData.nFragSource = size + 1;
-    char *fragSource = (char *)calloc(1, size + 1);
-    if (NULL == fragSource) {
-        LogE("Failed calloc memory for fragSource\n");
-        AAsset_close(asset);
-        return -1;
-    }
-    
-    if (AAsset_read(asset, fragSource, size) != size) {
-        LogE("Failed read %s\n", FRAG_SHDR_NAME);
-        AAsset_close(asset);
-        free (fragSource);
-        return -1;
-    }
-    AAsset_close(asset);
+	char *fragSource = NULL;
+	int nFragSource = readFileFromAssets (env, FRAG_SHDR_NAME, &fragSource);
+	if (nFragSource < 0) {
+		LogE("Failed read assets file:%s\n", FRAG_SHDR_NAME);
+	}
+	env->userData.nFragSource = nFragSource;
     env->userData.fragSource = fragSource;
-    Log("Load %s OK.\n", FRAG_SHDR_NAME);
+	t_finish = getCurrentTime();
+    Log("Load %s OK cost %d ms.\n", FRAG_SHDR_NAME, t_finish - t_begin);
 
 	if (attachShader(env, vertSource, fragSource) < 0) {
 		LogE("Failed attachShader\n");
@@ -935,14 +952,13 @@ int initSdkEnv(SdkEnv *env)
 
 int setEffectCmd(SdkEnv* env, const char* cmd)
 {
-    VALIDATE_NOT_NULL2(env, cmd);
+	Log("++++ %s ++++\n", __func__);
 
-    // TODO
-    // parseEffectCmd
+    VALIDATE_NOT_NULL2(env, cmd);
 
     Log ("efffect command:%s\n", cmd);
 
-    // TODO
+//    parseEffectCmd (env);
 
     if (NULL == env->userCmd.cmd || strcmp(cmd, env->userCmd.cmd) != 0) {
         Bitmap_t *img = (Bitmap_t *) calloc(1, sizeof(Bitmap_t));
@@ -983,6 +999,8 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
         Log ("Cmd is the same\n");
     }
 
+	Log("---- %s ----\n", __func__);
+
     return 0;
 }
 
@@ -994,6 +1012,11 @@ int parseEffectCmd(SdkEnv* env)
 }
 
 static void onDraw(SdkEnv *env) {
+	if (NULL == env) {
+		LogE ("NULL pointer exception in onDraw()\n");
+		return;
+	}
+	Log("onDraw()\n");
 
     /*
 	GLfloat vertex[] = {

@@ -5,6 +5,8 @@ include $(CLEAR_VARS)
 LOCAL_WHOLE_STATIC_LIBRARIES := libpng libz libjpeg
 LOCAL_MODULE 	:= imgsdk
 
+LOCAL_CFLAGS += -D_ANDROID_
+
 LOCAL_SRC_FILES := imgsdk.c \
 				   android_main.c \
 				   NativeImageSdk.c \

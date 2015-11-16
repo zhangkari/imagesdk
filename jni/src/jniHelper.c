@@ -15,6 +15,10 @@
  */
 char* jstring2string(JNIEnv *env, jstring jstr) 
 {
+	if (NULL == env || NULL == jstr) {
+		return NULL;
+	}
+
 	char *cmd = NULL;
 	jclass clsStr = (jclass) (*env)->FindClass(env, "java/lang/String");
 	jstring strEncode = (jstring) (*env)->NewStringUTF(env, "UTF-8");
@@ -40,6 +44,10 @@ char* jstring2string(JNIEnv *env, jstring jstr)
  */
 jstring string2jstring(JNIEnv *env, const char *cmd) 
 {
+	if (NULL == env || NULL == cmd) {
+		return NULL;
+	}
+
 	jclass clsStr = (jclass) (*env)->FindClass(env, "java/lang/String");
 	jmethodID mid = (jmethodID) (*env)->GetMethodID(env, clsStr, "<init>", "([BLjava/lang/String;)V");
 	jstring strEncode = (jstring) (*env)->NewStringUTF(env, "UTF-8");

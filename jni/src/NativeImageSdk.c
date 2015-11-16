@@ -19,8 +19,7 @@
 jlong JNICALL Java_org_imgsdk_core_NativeImageSdk_initSDK
   (JNIEnv *env, jobject thiz, jobject jcontext)
 {
-	Log("++++ initSDK() in native method ++++\n");
-
+	LOG_ENTRY;
 	if (NULL == jcontext) {
 		LogE("NULL pointer exception:context = NULL\n");
 		return 0;
@@ -56,7 +55,7 @@ jlong JNICALL Java_org_imgsdk_core_NativeImageSdk_initSDK
 	}
 
 	jlong ptr = (jlong) ( (intptr_t)sdk );
-	Log("---- initSDK() in native method ----\n");
+	LOG_EXIT;
 	return ptr;
 }
 
@@ -68,8 +67,7 @@ jlong JNICALL Java_org_imgsdk_core_NativeImageSdk_initSDK
 jlong JNICALL Java_org_imgsdk_core_NativeImageSdk_initRenderSDK
   (JNIEnv *env, jobject thiz, jobject jcontext, jobject jsurface)
 {
-	Log("++++ initRenderSDK() in native method ++++\n");
-
+	LOG_ENTRY;
 	if (NULL == jcontext) {
 		LogE("NULL pointer exception:context = NULL\n");
 		return 0;
@@ -121,7 +119,7 @@ jlong JNICALL Java_org_imgsdk_core_NativeImageSdk_initRenderSDK
 	sdkMain (sdk);
 
 	jlong ptr = (jlong) ( (intptr_t)sdk );
-	Log("---- initRenderSDK() in native method ----\n");
+	LOG_EXIT;
 	return ptr;
 }
 
@@ -134,14 +132,12 @@ jlong JNICALL Java_org_imgsdk_core_NativeImageSdk_initRenderSDK
 void JNICALL Java_org_imgsdk_core_NativeImageSdk_freeSDK
   (JNIEnv *env, jobject thiz, jlong ptr)
 {
-	Log("++++ freeSDK() in native method ++++\n");
-
+	LOG_ENTRY;
     SdkEnv *sdk = (SdkEnv *)((intptr_t) ptr);
     if (NULL != sdk) {
         freeSdkEnv(sdk);
     }
-
-	Log("---- freeSDK() in native method ----\n");
+	LOG_EXIT;
 }
 
 /*
@@ -152,10 +148,14 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_freeSDK
 void JNICALL Java_org_imgsdk_core_NativeImageSdk_setEffectCmd
   (JNIEnv *env, jobject thiz, jlong ptr, jstring jcommand)
 {
-	Log("++++ setEffectCmd() in native method ++++\n");
-
+	LOG_ENTRY;
 	SdkEnv* sdk = (SdkEnv *)((intptr_t)ptr);
 	if (NULL == sdk) {
+		LogE("NULL pointer exception\n");
+		return;
+	}
+
+	if (NULL == jcommand) {
 		LogE("NULL pointer exception\n");
 		return;
 	}
@@ -168,8 +168,9 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_setEffectCmd
 
     Log("EffectCmd = %s\n", cmd);
 
-	setEffectCmd(sdk, cmd);
-	Log("---- setEffectCmd() in native method ----\n");
+	setEffectCmd (sdk, cmd);
+
+	LOG_EXIT;
 }
 
 /*
@@ -180,8 +181,7 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_setEffectCmd
 void JNICALL Java_org_imgsdk_core_NativeImageSdk_executeCmd
   (JNIEnv *env, jobject thiz, jlong ptr)
 {
-	Log("++++ executeCmd() in native method ++++\n");
-
+	LOG_ENTRY;
 	SdkEnv *sdk = (SdkEnv *) ((intptr_t) ptr);
 	if (NULL == sdk) {
 		LogE("NULL pointer exception\n");
@@ -191,7 +191,7 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_executeCmd
     onSdkDraw (sdk);
 	swapEglBuffers(sdk);
 
-	Log("---- executeCmd() in native method ----\n");
+	LOG_EXIT;
 }
 
 
