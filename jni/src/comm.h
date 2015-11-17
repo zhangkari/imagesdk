@@ -20,7 +20,7 @@
 #define VALIDATE_NOT_NULL(X) 						\
     do { 											\
         if (NULL == X) { 							\
-            LogE(#X" = NULL in %s", __FUNCTION__);	\
+            LogE(#X" = NULL in %s\n", __FUNCTION__);	\
             return ;								\
         } 											\
     } while (0)

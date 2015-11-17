@@ -170,6 +170,8 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_setEffectCmd
 
 	setEffectCmd (sdk, cmd);
 
+	onSdkDraw (sdk);
+
 	LOG_EXIT;
 }
 
@@ -188,7 +190,7 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_executeCmd
 		return;
 	}
 
-    onSdkDraw (sdk);
+//    onSdkDraw (sdk);
 	swapEglBuffers(sdk);
 
 	LOG_EXIT;

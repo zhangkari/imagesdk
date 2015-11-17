@@ -40,9 +40,6 @@ typedef struct SdkEnv SdkEnv;
 #define VERT_SHADER_FILE "vert.shdr"
 #define FRAG_SHADER_FILE "frag.shdr"
 
-#define SURFACE_MAX_WIDTH  2048 
-#define SURFACE_MAX_HEIGHT 2048 
-
 /**
  * Read png file to memory
  * Return:

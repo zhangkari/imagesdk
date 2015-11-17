@@ -43,6 +43,7 @@ public class RenderSurfaceView extends SurfaceView implements android.view.Surfa
     public void surfaceCreated(SurfaceHolder surfaceHolder) {
         mImageSdk = new ImageSdk(getContext(), surfaceHolder.getSurface());
         mImageSdk.onCreate();
+        mImageSdk.setEffectCmd("render");
     }
 
     @Override

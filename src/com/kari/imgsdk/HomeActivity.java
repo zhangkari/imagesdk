@@ -7,13 +7,11 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 
-import org.imgsdk.core.ImageSdk;
-
 public class HomeActivity extends Activity implements View.OnClickListener {
     private Button mBtnLoad;
     private Button mBtnGo;
     private ImageView mImageView;
-    private ImageSdk mImageSdk;
+//    private ImageSdk mImageSdk;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -21,8 +19,8 @@ public class HomeActivity extends Activity implements View.OnClickListener {
         setContentView(R.layout.activity_home);
         findViews();
         setListeners();
-        mImageSdk = new ImageSdk(this);
-        mImageSdk.onCreate();
+//        mImageSdk = new ImageSdk(this);
+//        mImageSdk.onCreate();
     }
 
     private void findViews() {
@@ -39,7 +37,7 @@ public class HomeActivity extends Activity implements View.OnClickListener {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        mImageSdk.onDestroy();
+//        mImageSdk.onDestroy();
     }
 
     @Override
@@ -49,17 +47,17 @@ public class HomeActivity extends Activity implements View.OnClickListener {
                 if (mImageView.getVisibility() == View.GONE) {
                     mImageView.setImageResource(R.drawable.bg);
                     mImageView.setVisibility(View.VISIBLE);
-                    mImageSdk.setEffectCmd("cmd = zoom-in | value = 1.2");
-                    mImageSdk.executeCmd();
+//                    mImageSdk.setEffectCmd("cmd = zoom-in | value = 1.2");
+//                    mImageSdk.executeCmd();
                 } else {
                     mImageView.setVisibility(View.GONE);
-                    mImageSdk.setEffectCmd("cmd=zoom-out | value = 0.8f ");
-                    mImageSdk.executeCmd();
+//                    mImageSdk.setEffectCmd("cmd=zoom-out | value = 0.8f ");
+//                    mImageSdk.executeCmd();
                 }
                 break;
 
             case R.id.home_btn_go:
-                mImageSdk.onDestroy();
+//                mImageSdk.onDestroy();
                 startActivity(new Intent(this, RenderActivity.class));
                 break;
         }

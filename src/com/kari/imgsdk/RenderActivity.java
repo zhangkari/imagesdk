@@ -29,7 +29,6 @@ public class RenderActivity extends Activity {
         mBtnRun.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                mSurfaceView.setEffectCmd("reset");
                 mSurfaceView.invalidate();
             }
         });
