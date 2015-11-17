@@ -155,6 +155,8 @@ int main(int argc, char **argv) {
 	//glBindFramebuffer(GL_FRAMEBUFFER, env->handle.fboId);
 	glBindTexture(GL_TEXTURE, env->handle.textureId);
 
+    memset (img->base, 0, img->width * img->height * img->form);
+
     // copy pixels from GPU memory to CPU memory
 	int x = 0;
 	int y = 0;
@@ -1013,6 +1015,8 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
 		glGenFramebuffers (1, &env->handle.fboId);
 		glGenTextures(1, &env->handle.textureId);
 		glBindTexture (GL_TEXTURE_2D, env->handle.textureId);
+        glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		int level = 0;
 #define BORDER 0
 		glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, img->width, img->height, BORDER, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
