@@ -7,6 +7,7 @@
  ***************************/
 
 #include <malloc.h>
+#include <math.h>
 #include <string.h>
 #include <sys/time.h>
 #include <android/asset_manager.h>
@@ -72,9 +73,9 @@ typedef struct eglEnv {
 	EGLDisplay display;
     EGLSurface surface;
     EGLContext context;
-    EGLint     width;
-    EGLint     height;
-    EGLNativeWindowType window;
+    EGLint     width;			// used for glViewport
+    EGLint     height;			// used for glViewport
+    EGLNativeWindowType window;	// ignore in off-screen render)
 } eglEnv;
 
 /**
@@ -152,6 +153,7 @@ int main(int argc, char **argv) {
 
 	Bitmap_t *img = (Bitmap_t *) env->userData.param;
 	uint32_t begin_t = getCurrentTime();
+
 	//glBindFramebuffer(GL_FRAMEBUFFER, env->handle.fboId);
 	glBindTexture(GL_TEXTURE, env->handle.textureId);
 
@@ -160,8 +162,6 @@ int main(int argc, char **argv) {
     // copy pixels from GPU memory to CPU memory
 	int x = 0;
 	int y = 0;
-	
-//	glPixelStorei (GL_UNPACK_ALIGNMENT, 4);
     glReadPixels(x, y, img->width, img->height, GL_RGBA, GL_UNSIGNED_BYTE, img->base);
 	int errCode = glGetError ();
 	if (GL_NO_ERROR != errCode ) { 
@@ -482,6 +482,10 @@ void freeBitmap(Bitmap_t *mem)
     }
 }
 
+/**
+ * Initialize the default EGL
+ * Create a Pbuffer Surface for off-screen render
+ */
 static int initDefaultEGL(SdkEnv *env) {
 
     VALIDATE_NOT_NULL(env);
@@ -520,8 +524,8 @@ static int initDefaultEGL(SdkEnv *env) {
 		return -1;
 	}
 
-#define SURFACE_MAX_WIDTH  128
-#define SURFACE_MAX_HEIGHT 128
+#define SURFACE_MAX_WIDTH  2048
+#define SURFACE_MAX_HEIGHT 2048
 	EGLint surface_attrs[] = {
 		EGL_WIDTH,				SURFACE_MAX_WIDTH,
 		EGL_HEIGHT,				SURFACE_MAX_HEIGHT,
@@ -721,6 +725,22 @@ SdkEnv* newBlankSdkEnv(int platform)
 }
 
 /**
+ * Initialize opengl buffers such as framebuffer
+ * texture .etc
+ */
+static int initGlBuffers (SdkEnv *env) {
+	VALIDATE_NOT_NULL (env);
+	
+	glGenFramebuffers (1, &env->handle.fboId);
+	glGenTextures(1, &env->handle.textureId);
+	glBindTexture (GL_TEXTURE_2D, env->handle.textureId);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+	return 0;
+}
+
+/**
  * Create a default SdkEnv instance
  */
 SdkEnv* newDefaultSdkEnv() 
@@ -766,6 +786,11 @@ SdkEnv* newDefaultSdkEnv()
 		return NULL;
 	}
 
+	if (initGlBuffers (env) < 0) {
+		LogE ("Failed init OpenGL buffers.\n");
+		return NULL;
+	}
+
 	env->status = SDK_STATUS_OK;
 
     return env;
@@ -773,6 +798,7 @@ SdkEnv* newDefaultSdkEnv()
 
 /**
  * Initialize EGL by specified params
+ * Create a Window Surface for on-screen render
  */
 int initEGL(SdkEnv *env)
 {
@@ -893,6 +919,7 @@ static int readFileFromAssets(const SdkEnv *sdk,
 	return size + 1;
 }
 
+
 /**
  * Initialize the specified SdkEnv instance
  */
@@ -912,41 +939,35 @@ int initSdkEnv(SdkEnv *env)
 		return -1;
 	}
 
-    if (NULL != env->egl.window) {
+	if (NULL != env->egl.window) {	// On-screen render
 		t_begin = getCurrentTime();
-        if (initEGL(env) < 0) {
-            LogE("Failed initEGL\n");
-            return -1;
-        }
+		if (initEGL(env) < 0) {
+			LogE("Failed initEGL\n");
+			return -1;
+		}
 		t_finish = getCurrentTime();
-        Log("Initialize EGL OK cost %d ms.\n", t_finish - t_begin);
-        ANativeWindow *window = env->egl.window;
-        env->userData.width = ANativeWindow_getWidth(window);
-        env->userData.height = ANativeWindow_getHeight(window);
+		Log("Initialize EGL OK cost %d ms.\n", t_finish - t_begin);
 
-        Log ("Native window %d x %d\n", 
-                env->userData.width, env->userData.height);
+		ANativeWindow *window = env->egl.window;
+		env->userData.width = ANativeWindow_getWidth(window);
+		env->userData.height = ANativeWindow_getHeight(window);
+		Log ("Native window %d x %d\n", 
+				env->userData.width, env->userData.height);
 
-        if (env->egl.width != env->userData.width ||
-            env->egl.height != env->userData.height) {
-            LogE("EGL and Native window size are not equal\n");
-            return -1;
-        }
-
-    } 
-    else {
+		if (env->egl.width != env->userData.width ||
+				env->egl.height != env->userData.height) {
+			LogE("EGL and Native window size are not equal\n");
+			return -1;
+		}
+	} else {	// Off-screen render
 		t_begin = getCurrentTime();
-        if (initDefaultEGL(env) < 0) {
-            LogE("Failed initDefaultEGL\n");
-            return -1;
-        }
+		if (initDefaultEGL(env) < 0) {
+			LogE("Failed initDefaultEGL\n");
+			return -1;
+		}
 		t_finish = getCurrentTime();
-        Log("Initialize Default EGL OK cost %d ms.\n", t_finish - t_begin);
-
-        env->userData.width = env->egl.width;
-        env->userData.height = env->egl.height;
-    }
-
+		Log("Initialize Default EGL OK cost %d ms.\n", t_finish - t_begin);
+	}
   
 #define VERT_SHDR_NAME "vert.shdr"
 	t_begin = getCurrentTime();
@@ -976,6 +997,10 @@ int initSdkEnv(SdkEnv *env)
 		return -1;
 	}
 
+	if (initGlBuffers (env) < 0) {
+		LogE ("Failed init OpenGL buffers\n");
+	}
+
 	env->status = SDK_STATUS_OK;
 
     return 0;
@@ -985,9 +1010,10 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
 {
 	LOG_ENTRY;
     VALIDATE_NOT_NULL2(env, cmd);
-    Log ("efffect command:%s\n", cmd);
+    Log ("EffectCmd:%s\n", cmd);
 
 //    parseEffectCmd (env);
+
     if (NULL == env->userCmd.cmd || strcmp(cmd, env->userCmd.cmd) != 0) {
         Bitmap_t *img = (Bitmap_t *) calloc(1, sizeof(Bitmap_t));
         if (NULL == img) {
@@ -1008,21 +1034,24 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
             free (env->userCmd.cmd);
             env->userCmd.cmd = NULL;
         }
+
+		// In off-screen render, We must reAssign value.
+		// Otherwise, the elemets will be invisible
+		if (OFF_SCREEN_RENDER == env->type) {
+			env->egl.width = img->width;
+			env->egl.height = img->height;
+		}
+
         env->userCmd.cmd = strdup (cmd);
         env->userData.param = (void *) img;
         env->userData.active = ACTIVE_PARAM;
 
-		glGenFramebuffers (1, &env->handle.fboId);
-		glGenTextures(1, &env->handle.textureId);
-		glBindTexture (GL_TEXTURE_2D, env->handle.textureId);
-        glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		int level = 0;
 #define BORDER 0
 		glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, img->width, img->height, BORDER, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 
     } else {
-        Log ("Cmd is the same\n");
+        Log ("EffectCmd has no change\n");
     }
 
 	LOG_EXIT;
@@ -1043,30 +1072,23 @@ static void onDraw(SdkEnv *env) {
 	}
 	Log("onDraw()\n");
 
-#if 1
-	GLfloat vertex[] = {
-		 0.0,   0.5f, 0.0f,
-		-0.5f, -0.5f, 0.0f,
-		 0.5f, -0.5f, 0.0f
-	};
-#else
-    GLfloat vertex[] = {
-        -0.9,  0.9, 0.0f,
-        -0.9, -0.9, 0.0f,
-        0.9, -0.9, 0,
-        0.9,  0.9, 0.0f
-    };
-#endif
-
-    GLfloat texCoord[] = {
-        0.0, 1.0,
-        0.0, 0.0,
-        1.0, 0.0,
-        1.0, 1.0
-    };
+#define POINT_COUNT 5
+	// start vertex
+	GLfloat vertex[POINT_COUNT * 3];
+	int i = 0;
+	int start_angle = 18;
+	int delta_angle = 72;
+	float factor = (float) env->egl.width / (float)env->egl.height;
+	while ( i < POINT_COUNT * 3 ) {
+		float angle = start_angle + (i / 3) * delta_angle;
+		vertex[i] = cos ( M_PI * angle / 180.0f);
+		vertex[i+1] = sin (M_PI * angle / 180.0f) * factor;
+		vertex[i+2] = 0;
+		i += 3;
+	}
 
 	GLfloat color[] = {
-		0.0f, 0.0f, 1.0f, 1.0f
+		1.0f, 0.0f, 1.0f, 1.0f
 	};
 
 	glViewport(0, 0, env->egl.width, env->egl.height);
@@ -1086,28 +1108,14 @@ static void onDraw(SdkEnv *env) {
 
 		GLenum status = glCheckFramebufferStatus (GL_FRAMEBUFFER);
 		if (status != GL_FRAMEBUFFER_COMPLETE) {
-			LogE ("Framebuffer not in complete status\n");
+			LogE ("Framebuffer not ready. status code:0x%04x\n", status);
 		}
 	}
 
-#if 0
-    glActiveTexture (GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, env->handle.textureId);
-    glUniform1i (env->handle.sampler2D, 0);
-#endif
-
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, vertex);
 	glEnableVertexAttribArray(0);
-
-#if 0
-	glVertexAttribPointer(env->handle.texCoord, 2, GL_FLOAT, GL_FALSE, 0, texCoord);
-	glEnableVertexAttribArray(env->handle.texCoord);
-#endif
-
 	glUniform4fv(env->handle.color, 1, color);
-
-	glDrawArrays(GL_TRIANGLE_FAN, 0, 3);
-	//glDisableVertexAttribArray(0);
+	glDrawArrays(GL_TRIANGLE_FAN, 0, POINT_COUNT);
 
 	// Only rendering with OpenGL ES 2.0, so
 	// I simply call glFinish()
@@ -1138,6 +1146,11 @@ int setEglNativeWindow(SdkEnv *env, EGLNativeWindowType window)
 	env->egl.window = window;
 }
 
+/**
+ * Swap back buffer and front buffer
+ * Please call me in on-screen render,
+ * And ignore me in off-screen render.
+ */
 void swapEglBuffers(SdkEnv *env)
 {
 	if (NULL != env) {
