@@ -6,6 +6,7 @@
  *
  ***************************/
 
+#include <assert.h>
 #include <malloc.h>
 #include <math.h>
 #include <string.h>
@@ -14,6 +15,7 @@
 #include <android_native_app_glue.h>
 #include <GLES2/gl2.h>
 #include "png.h"
+#include "jpeglib.h"
 #include "imgsdk.h"
 
 /**
@@ -1035,6 +1037,19 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
             env->userCmd.cmd = NULL;
         }
 
+        // Just for test write_jpeg
+#if 1
+        begin_t = getCurrentTime();
+        if (write_jpeg ("2.jpg", img) < 0) {
+            LogE ("Failed write 2.jpg\n");
+        }
+        end_t = getCurrentTime();
+        Log ("write 2.jpg cost %d ms\n", end_t - begin_t);
+#endif
+
+
+
+
 		// In off-screen render, We must reAssign value.
 		// Otherwise, the elemets will be invisible
 		if (OFF_SCREEN_RENDER == env->type) {
@@ -1206,4 +1221,110 @@ uint32_t getCurrentTime()
 		return 0;
 	}
 	return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+/**
+ * Read jpeg file to memory
+ * Return:
+ *		 0 OK
+ *		-1 error
+ */
+int read_jpeg(const char *path, Bitmap_t *mem)
+{
+    VALIDATE_NOT_NULL2 (path, mem);
+
+    FILE *fp = fopen (path, "rb");
+    if (NULL == fp) {
+        return -1;
+    }
+
+    struct jpeg_decompress_struct jds;
+    struct jpeg_error_mgr jerr;
+    jds.err = jpeg_std_error (&jerr);
+    jpeg_create_decompress (&jds);
+    jpeg_stdio_src (&jds, fp);
+    jpeg_read_header (&jds, TRUE);
+    
+    Log("[%s %d x %d %d]\n", path, jds.image_width, jds.image_height, jds.num_components);
+
+    mem->base = (char *) calloc (jds.image_width * jds.image_height * jds.num_components, 1);
+    assert (NULL != mem->base);
+
+    jpeg_start_decompress (&jds); 
+    JSAMPROW row_pointer[1];
+    while (jds.output_scanline < jds.output_height) {
+        row_pointer[0] = (JSAMPROW)(mem->base + (jds.output_height - jds.output_scanline - 1) * jds.image_width * jds.num_components);
+        jpeg_read_scanlines (&jds, row_pointer, 1);
+    }
+    jpeg_finish_decompress (&jds);
+    jpeg_destroy_decompress (&jds);
+    fclose (fp);
+
+    return 0;
+}
+
+/**
+ * Write jpeg data from memory to file
+ * Return:
+ *		 0 OK
+ *		-1 error
+ */
+int write_jpeg(const char *path, Bitmap_t *mem)
+{
+    VALIDATE_NOT_NULL3 (path, mem, mem->base);
+
+    FILE *fp = fopen (path, "wb");
+    if (NULL == fp) {
+        return -1;
+    }
+
+    struct jpeg_compress_struct jcs;
+    struct jpeg_error_mgr jerr;
+    jcs.err = jpeg_std_error (&jerr);
+    jpeg_create_compress (&jcs);
+    jpeg_stdio_dest (&jcs, fp);
+    jcs.image_width = mem->width;
+    jcs.image_height = mem->height;
+
+#if 0
+    assert (mem->form >= GRAY && mem->form <= RGBA32);
+    assert (mem->form != RGB16);
+#endif
+
+    Log ("stub 1 \n");
+
+    int colorSpace = JCS_GRAYSCALE;
+    int components = mem->form;
+    if (components > 3) {
+        components = 3;
+        colorSpace = JCS_RGB;
+    }
+    jcs.input_components = components;
+    jcs.in_color_space = colorSpace;
+
+    jpeg_set_defaults (&jcs);
+#define QUALITY 80
+    jpeg_set_quality (&jcs, QUALITY, TRUE);
+
+    jpeg_start_compress (&jcs, TRUE);
+
+    Log ("stub 2 \n");
+
+    JSAMPROW row_pointer[1];
+    int row_stride = mem->width * mem->form;
+
+    while ( jcs.next_scanline < jcs.image_height ) {
+        row_pointer[0] = (JSAMPROW)(mem->base + jcs.next_scanline * row_stride);
+        jpeg_write_scanlines (&jcs, row_pointer, 1);
+    }
+
+    Log ("stub 3 \n");
+
+    jpeg_finish_compress (&jcs);
+    jpeg_destroy_compress (&jcs);
+    fclose (fp);
+
+    Log ("stub 4 \n");
+
+    return 0;
 }

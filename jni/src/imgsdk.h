@@ -56,6 +56,23 @@ int read_png(const char *path, Bitmap_t *mem);
  */
 int write_png(const char *path, Bitmap_t *mem);
 
+/**
+ * Read jpeg file to memory
+ * Return:
+ *		 0 OK
+ *		-1 error
+ */
+int read_jpeg(const char *path, Bitmap_t *mem);
+
+/**
+ * Write jpeg data from memory to file
+ * Return:
+ *		 0 OK
+ *		-1 error
+ */
+int write_jpeg(const char *path, Bitmap_t *mem);
+
+
 /*
  * Free bitmap
  */
