@@ -145,11 +145,6 @@ void onSdkDestroy(SdkEnv *env);
 int setEffectCmd(SdkEnv* env, const char* cmd);
 
 /**
- * Parse user's effect command
- */
-int parseEffectCmd(SdkEnv* env);
-
-/**
  * Read file to memory. Do not forget to free memory
  */
 int readFile(const char* path, char** mem);

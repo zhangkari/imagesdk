@@ -2,15 +2,18 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
-LOCAL_WHOLE_STATIC_LIBRARIES := libjpeg libpng
+LOCAL_WHOLE_STATIC_LIBRARIES := libjpeg libpng libjson
 LOCAL_MODULE 	:= imgsdk
 
 LOCAL_CFLAGS += -D_ANDROID_
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../libpng-1.6.17 \
-					$(LOCAL_PATH)/../jpeg-9a
+					$(LOCAL_PATH)/../jpeg-9a	\
+					$(LOCAL_PATH)/../cJSON
 					
 LOCAL_SRC_FILES := imgsdk.c \
+				   chrbuf.c	\
+				   eftcmd.c	\
 				   android_main.c \
 				   NativeImageSdk.c \
 				   jniHelper.c

@@ -17,6 +17,7 @@
 #include "png.h"
 #include "jpeglib.h"
 #include "imgsdk.h"
+#include "eftcmd.h"
 
 /**
  * User's command
@@ -104,18 +105,31 @@ enum {
 typedef struct SdkEnv {
 	// sdk type
 	int type;
+
 	// sdk status
 	int status;
+
 	// native Activity
     struct android_app* app; 
+
     // EGL
 	eglEnv egl;
+
     // openGL ES2 shader variable handle 
 	CommHandle handle;
+
     // user data
 	UserData userData;
+
     // user cmd
     UserCmd userCmd;
+
+	// effect cmd count
+	int	eftCmdCnt;
+
+	// effect cmd set
+	eftcmd_t* eftCmdSet;
+
     // callback	
 	CallbackFunc onCreate;
     CallbackFunc onDraw;
@@ -1014,8 +1028,6 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
     VALIDATE_NOT_NULL2(env, cmd);
     Log ("EffectCmd:%s\n", cmd);
 
-//    parseEffectCmd (env);
-
     if (NULL == env->userCmd.cmd || strcmp(cmd, env->userCmd.cmd) != 0) {
         Bitmap_t *img = (Bitmap_t *) calloc(1, sizeof(Bitmap_t));
         if (NULL == img) {
@@ -1071,13 +1083,6 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
 
 	LOG_EXIT;
     return 0;
-}
-
-int parseEffectCmd(SdkEnv* env)
-{
-    VALIDATE_NOT_NULL(env);
-    
-    return -1;
 }
 
 static void onDraw(SdkEnv *env) {
