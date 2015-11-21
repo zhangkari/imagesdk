@@ -18,21 +18,12 @@
 #include "jpeglib.h"
 #include "imgsdk.h"
 #include "eftcmd.h"
-
-/**
- * User's command
- */
-typedef struct {
-    GLchar  *cmd;
-    GLuint  cmdLen;
-    GLuint  cmdSize;
-    GLuint  paramCount;
-} UserCmd;
+#include "chrbuf.h"
 
 typedef enum ActiveType {
-	ACTIVE_NONE  = 0,
-	ACTIVE_PARAM = 1,
-	ACTIVE_PIXEL = 2,
+    ACTIVE_NONE  = 0,
+    ACTIVE_PARAM = 1,
+    ACTIVE_PATH = 2,
 } ActiveType;
 
 /**
@@ -42,11 +33,11 @@ typedef struct {
     GLuint			width;			// user's image width
     GLuint			height;			// user's image height
     GLchar			*param;			// user's parameter
-    GLchar			*pixel;			// user's image pixel
-	ActiveType		active;			// which is active ( param or pixel) 
-	PixForm_e		pixfmt;			// pixel format
-	PlatformType	platform;		// 0 Android, 1 iOS
-	void			*platformData;	// AssetManager in Android
+    GLchar			*path;			// user's image path
+    ActiveType		active;			// which is active ( param or pixel) 
+    PixForm_e		pixfmt;			// pixel format
+    PlatformType	platform;		// 0 Android, 1 iOS
+    void			*platformData;	// AssetManager in Android
     char            *vertSource;    // vertex shader source
     int             nVertSource;    // length of vertSource
     char            *fragSource;    // fragment shader source
@@ -59,21 +50,21 @@ typedef struct {
  */
 typedef struct CommHandle {
     GLuint program;				// program handler
-	GLuint vertShader;			// vertex shader handle
-	GLuint fragShader;			// fragment shader handle
+    GLuint vertShader;			// vertex shader handle
+    GLuint fragShader;			// fragment shader handle
     GLint position;				// attribute vec3 aPosition
-	GLint color;				// uniform vec4 uColor
+    GLint color;				// uniform vec4 uColor
     GLuint textureId;           // texture handle
     GLuint sampler2dId;         // sampler handler
     GLuint texCoordId;          // texture coordinate
-	GLuint fboId;				// framebuffer id
+    GLuint fboId;				// framebuffer id
 } CommHandle;
 
 /**
  * EGL environment
  */
 typedef struct eglEnv {
-	EGLDisplay display;
+    EGLDisplay display;
     EGLSurface surface;
     EGLContext context;
     EGLint     width;			// used for glViewport
@@ -90,50 +81,47 @@ typedef void (*CallbackFunc)(SdkEnv *);
  * Indicate sdk status
  */
 enum {
-	SDK_STATUS_ERR  = 0,
-	SDK_STATUS_OK   = 1,
+    SDK_STATUS_ERR  = 0,
+    SDK_STATUS_OK   = 1,
 };
 
 /**
  * Indicate sdk type
  */
 enum {
-	ON_SCREEN_RENDER  = 0,
-	OFF_SCREEN_RENDER = 1
+    ON_SCREEN_RENDER  = 0,
+    OFF_SCREEN_RENDER = 1
 }; 
 
 typedef struct SdkEnv {
-	// sdk type
-	int type;
+    // sdk type
+    int type;
 
-	// sdk status
-	int status;
+    // sdk status
+    int status;
 
-	// native Activity
+    // native Activity
     struct android_app* app; 
 
     // EGL
-	eglEnv egl;
+    eglEnv egl;
 
     // openGL ES2 shader variable handle 
-	CommHandle handle;
+    CommHandle handle;
 
     // user data
-	UserData userData;
+    UserData userData;
 
     // user cmd
-    UserCmd userCmd;
+    chrbuf_t *userCmd;
 
-	// effect cmd count
-	int	eftCmdCnt;
-
-	// effect cmd set
-	eftcmd_t* eftCmdSet;
+    // effect cmd
+    eftcmd_t effectCmd;
 
     // callback	
-	CallbackFunc onCreate;
+    CallbackFunc onCreate;
     CallbackFunc onDraw;
-	CallbackFunc onDestroy;
+    CallbackFunc onDestroy;
 } SdkEnv;
 
 static void onCreate(SdkEnv *env);
@@ -142,13 +130,13 @@ static void onDestroy(SdkEnv *env);
 
 int sdkMain(SdkEnv *env)
 {
-	VALIDATE_NOT_NULL(env);
+    VALIDATE_NOT_NULL(env);
 
-	env->onCreate  = onCreate;
-	env->onDraw	   = onDraw;
-	env->onDestroy = onDestroy;
+    env->onCreate  = onCreate;
+    env->onDraw	   = onDraw;
+    env->onDestroy = onDestroy;
 
-	onSdkCreate(env);
+    onSdkCreate(env);
 }
 
 int main(int argc, char **argv) {
@@ -163,42 +151,42 @@ int main(int argc, char **argv) {
         LogE("Failed get SdkEnv instance\n");
     }
 
-	sdkMain (env);
+    sdkMain (env);
     setEffectCmd (env, "test cmd ");
     onSdkDraw (env);
 
-	Bitmap_t *img = (Bitmap_t *) env->userData.param;
-	uint32_t begin_t = getCurrentTime();
+    Bitmap_t *img = (Bitmap_t *) env->userData.param;
+    uint32_t begin_t = getCurrentTime();
 
-	//glBindFramebuffer(GL_FRAMEBUFFER, env->handle.fboId);
-	glBindTexture(GL_TEXTURE, env->handle.textureId);
+    //glBindFramebuffer(GL_FRAMEBUFFER, env->handle.fboId);
+    glBindTexture(GL_TEXTURE, env->handle.textureId);
 
     memset (img->base, 0, img->width * img->height * img->form);
 
     // copy pixels from GPU memory to CPU memory
-	int x = 0;
-	int y = 0;
+    int x = 0;
+    int y = 0;
     glReadPixels(x, y, img->width, img->height, GL_RGBA, GL_UNSIGNED_BYTE, img->base);
-	int errCode = glGetError ();
-	if (GL_NO_ERROR != errCode ) { 
-		Log ("Failed read pixles, error code:0x%04x\n", errCode);
-	}
+    int errCode = glGetError ();
+    if (GL_NO_ERROR != errCode ) { 
+        Log ("Failed read pixles, error code:0x%04x\n", errCode);
+    }
 
-	uint32_t finish_t = getCurrentTime();
-	LogD("Read pixel data cost %d ms\n", (finish_t - begin_t));
+    uint32_t finish_t = getCurrentTime();
+    LogD("Read pixel data cost %d ms\n", (finish_t - begin_t));
 
-	begin_t = getCurrentTime();
+    begin_t = getCurrentTime();
 
 #define DEST_PATH  "2.png"
     if (write_png(DEST_PATH, img) < 0) {
         LogE("Failed write png\n");
     }
 
-	finish_t = getCurrentTime();
-	LogD("Save %s cost %d ms\n", DEST_PATH, (finish_t - begin_t));
+    finish_t = getCurrentTime();
+    LogD("Save %s cost %d ms\n", DEST_PATH, (finish_t - begin_t));
 
     freeSdkEnv(env);
-	//onSdkDestroy(env);
+    //onSdkDestroy(env);
 }
 
 int read_png(const char *path, Bitmap_t *mem)
@@ -378,7 +366,7 @@ static int loadShader(GLenum type, const char* source) {
     int compiled, len;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
     if (!compiled) {
-		memset(gLogBuff, 0, LOG_BUFF_SIZE);
+        memset(gLogBuff, 0, LOG_BUFF_SIZE);
         glGetShaderInfoLog(shader, LOG_BUFF_SIZE, &len, gLogBuff);
         if (len > 0) {
             Log("compile error:%s\n", gLogBuff);
@@ -387,9 +375,9 @@ static int loadShader(GLenum type, const char* source) {
         }
         shader = 0;
         glDeleteShader(shader);
-	}
+    }
 
-	return shader;
+    return shader;
 }
 
 /**
@@ -402,12 +390,12 @@ static int createProgram(SdkEnv *env, const char* vertexSource, const char* frag
 {
     VALIDATE_NOT_NULL3(env, vertexSource, fragSource);
 
-	// Make sure to reset them
-	env->handle.program		= 0;
-	env->handle.vertShader	= 0;
-	env->handle.fragShader	= 0;
+    // Make sure to reset them
+    env->handle.program		= 0;
+    env->handle.vertShader	= 0;
+    env->handle.fragShader	= 0;
 
-	int program = 0;
+    int program = 0;
     int vertShader = 0;
     int fragShader = 0;
 
@@ -441,7 +429,7 @@ static int createProgram(SdkEnv *env, const char* vertexSource, const char* frag
         glGetProgramiv(program, GL_LINK_STATUS, &linkStatus);
         GLint len;
         if (!linkStatus) {
-			memset(gLogBuff, 0, LOG_BUFF_SIZE);
+            memset(gLogBuff, 0, LOG_BUFF_SIZE);
             glGetProgramInfoLog(program, LOG_BUFF_SIZE, &len, gLogBuff); 
             if (len > 0) {
                 Log("link error log:%s\n", gLogBuff);
@@ -451,23 +439,23 @@ static int createProgram(SdkEnv *env, const char* vertexSource, const char* frag
             break;
         }
 
-		glValidateProgram(program);
-		GLint success;
-		glGetProgramiv(program, GL_VALIDATE_STATUS, &success);
-		if (!success) {
-			memset(gLogBuff, 0, LOG_BUFF_SIZE);
-			glGetProgramInfoLog(program, LOG_BUFF_SIZE, &len, gLogBuff);
-			if (len > 0) {
-				Log("program is invalidate:%s\n", gLogBuff); 
-			} else {
-				LogE("Failed get program status\n");
-			}
-			break;
-		}
+        glValidateProgram(program);
+        GLint success;
+        glGetProgramiv(program, GL_VALIDATE_STATUS, &success);
+        if (!success) {
+            memset(gLogBuff, 0, LOG_BUFF_SIZE);
+            glGetProgramInfoLog(program, LOG_BUFF_SIZE, &len, gLogBuff);
+            if (len > 0) {
+                Log("program is invalidate:%s\n", gLogBuff); 
+            } else {
+                LogE("Failed get program status\n");
+            }
+            break;
+        }
 
-		env->handle.program		= program;
-		env->handle.vertShader	= vertShader;
-		env->handle.fragShader	= fragShader;
+        env->handle.program		= program;
+        env->handle.vertShader	= vertShader;
+        env->handle.fragShader	= fragShader;
 
         return 0;
 
@@ -484,7 +472,7 @@ static int createProgram(SdkEnv *env, const char* vertexSource, const char* frag
     if (fragShader) {
         glDeleteShader(fragShader);
     }
-    
+
     return -1;
 }
 
@@ -535,25 +523,25 @@ static int initDefaultEGL(SdkEnv *env) {
         EGL_ALPHA_SIZE,      8,
         EGL_NONE
     };
-	if (!eglChooseConfig(env->egl.display, cfg_attrs, configs, 2, &numConfigs) || numConfigs < 1) {
-		LogE("Failed eglChooseConfig\n");
-		return -1;
-	}
+    if (!eglChooseConfig(env->egl.display, cfg_attrs, configs, 2, &numConfigs) || numConfigs < 1) {
+        LogE("Failed eglChooseConfig\n");
+        return -1;
+    }
 
 #define SURFACE_MAX_WIDTH  2048
 #define SURFACE_MAX_HEIGHT 2048
-	EGLint surface_attrs[] = {
-		EGL_WIDTH,				SURFACE_MAX_WIDTH,
-		EGL_HEIGHT,				SURFACE_MAX_HEIGHT,
+    EGLint surface_attrs[] = {
+        EGL_WIDTH,				SURFACE_MAX_WIDTH,
+        EGL_HEIGHT,				SURFACE_MAX_HEIGHT,
 
-		/*
-		EGL_TEXTURE_FORMAT,		EGL_TEXTURE_RGAB,
-		EGL_TEXTURE_TARGET,		EGL_TEXTURE_2D,
-		*/
+        /*
+           EGL_TEXTURE_FORMAT,		EGL_TEXTURE_RGAB,
+           EGL_TEXTURE_TARGET,		EGL_TEXTURE_2D,
+         */
 
-		EGL_LARGEST_PBUFFER,	EGL_TRUE,
-		EGL_NONE
-	};
+        EGL_LARGEST_PBUFFER,	EGL_TRUE,
+        EGL_NONE
+    };
     env->egl.surface = eglCreatePbufferSurface(env->egl.display, configs[0], surface_attrs);
 
     if (EGL_NO_SURFACE == env->egl.surface) {
@@ -585,7 +573,7 @@ static int initDefaultEGL(SdkEnv *env) {
     eglQuerySurface(env->egl.display, env->egl.surface, EGL_HEIGHT, &env->egl.height);
     Log("EGL Pbuffer Surface %d x %d\n", env->egl.width, env->egl.height);
 
-	env->type = OFF_SCREEN_RENDER;
+    env->type = OFF_SCREEN_RENDER;
 
     return 0;
 }
@@ -594,14 +582,14 @@ static int initDefaultEGL(SdkEnv *env) {
  * Release shader & program
  */
 static int releaseShader(SdkEnv *env) {
-	VALIDATE_NOT_NULL(env);
+    VALIDATE_NOT_NULL(env);
 
-	glDetachShader(env->handle.program, env->handle.vertShader);
-	glDetachShader(env->handle.program, env->handle.fragShader);
-	glDeleteShader(env->handle.vertShader);
-	glDeleteShader(env->handle.fragShader);
-	glDeleteProgram(env->handle.program);
-	glReleaseShaderCompiler();
+    glDetachShader(env->handle.program, env->handle.vertShader);
+    glDetachShader(env->handle.program, env->handle.fragShader);
+    glDeleteShader(env->handle.vertShader);
+    glDeleteShader(env->handle.fragShader);
+    glDeleteProgram(env->handle.program);
+    glReleaseShaderCompiler();
 }
 
 /**
@@ -622,36 +610,36 @@ int freeSdkEnv(SdkEnv *env)
             eglDestroySurface(env->egl.display, env->egl.surface);
         }
         eglTerminate(env->egl.display);
-		eglReleaseThread();
+        eglReleaseThread();
     }
 
     env->egl.display = EGL_NO_DISPLAY;
     env->egl.context = EGL_NO_CONTEXT;
     env->egl.surface = EGL_NO_SURFACE;
-	if (ACTIVE_PIXEL == env->userData.active 
-			&& NULL != env->userData.pixel) {
-		free (env->userData.pixel);
-		env->userData.pixel = NULL;
-	}
+    if (ACTIVE_PATH == env->userData.active 
+            && NULL != env->userData.path) {
+        free (env->userData.path);
+        env->userData.path = NULL;
+    }
 
-	if (ACTIVE_PARAM == env->userData.active 
-			&& NULL != env->userData.param) {
-		Bitmap_t *img = (Bitmap_t *) env->userData.param;
-		freeBitmap (img);
-		env->userData.param = NULL;
-	}
+    if (ACTIVE_PARAM == env->userData.active 
+            && NULL != env->userData.param) {
+        Bitmap_t *img = (Bitmap_t *) env->userData.param;
+        freeBitmap (img);
+        env->userData.param = NULL;
+    }
 
-	if (NULL != env->userCmd.cmd) {
-		free (env->userCmd.cmd);
-		env->userCmd.cmd = NULL;
-	}
+    if (NULL != env->userCmd) {
+        freeChrbuf (env->userCmd);
+        env->userCmd = NULL;
+    }
 
-	releaseShader(env);
+    releaseShader(env);
 
-	if (OFF_SCREEN_RENDER == env->type) {
-		glDeleteFramebuffers (1, &env->handle.fboId);
-		glDeleteTextures (1, &env->handle.textureId);
-	}
+    if (OFF_SCREEN_RENDER == env->type) {
+        glDeleteFramebuffers (1, &env->handle.fboId);
+        glDeleteTextures (1, &env->handle.textureId);
+    }
 
     free (env);
 }
@@ -660,35 +648,35 @@ int freeSdkEnv(SdkEnv *env)
  * Find all variables handle in shader
  */
 static int findShaderHandles(SdkEnv *env) {
-	if (NULL == env) {
-		return -1;
-	}
+    if (NULL == env) {
+        return -1;
+    }
 
-	if (0 == env->handle.program) {
-		return -1;
-	}
+    if (0 == env->handle.program) {
+        return -1;
+    }
 
-	env->handle.position = glGetAttribLocation(env->handle.program, "aPosition");
-	if (env->handle.position < 0) {
-		LogE("Failed get aPosition location\n");
-	}
+    env->handle.position = glGetAttribLocation(env->handle.program, "aPosition");
+    if (env->handle.position < 0) {
+        LogE("Failed get aPosition location\n");
+    }
 
-	env->handle.color = glGetUniformLocation(env->handle.program, "uColor");
-	if (env->handle.color < 0) {
-		LogE("Failed get uColor location\n");
-	}
+    env->handle.color = glGetUniformLocation(env->handle.program, "uColor");
+    if (env->handle.color < 0) {
+        LogE("Failed get uColor location\n");
+    }
 
-	env->handle.sampler2dId = glGetUniformLocation(env->handle.program, "uSampler2D");
-	if (env->handle.sampler2dId < 0) {
-		LogE("Failed get uSampler2D location\n");
-	}
+    env->handle.sampler2dId = glGetUniformLocation(env->handle.program, "uSampler2D");
+    if (env->handle.sampler2dId < 0) {
+        LogE("Failed get uSampler2D location\n");
+    }
 
     env->handle.texCoordId = glGetAttribLocation(env->handle.program, "aTexCoord");
     if (env->handle.texCoordId < 0) {
         LogE("Failed get aTexCoord location\n");
     }
 
-	return 0;
+    return 0;
 }
 
 /**
@@ -708,8 +696,8 @@ static int attachShader(SdkEnv *env,
     const GLubyte* vendor = glGetString(GL_VENDOR);
     Log ("Vendor:%s\n", vendor);
 #if 0
-	const GLubyte* extension = glGetString (GL_EXTENSIONS);
-	Log ("Extensions:\n%s\n\n", extension);
+    const GLubyte* extension = glGetString (GL_EXTENSIONS);
+    Log ("Extensions:\n%s\n\n", extension);
 #endif
 
     if(createProgram(env, vertSource, fragSource) < 0) {
@@ -731,13 +719,13 @@ static int attachShader(SdkEnv *env,
  */
 SdkEnv* newBlankSdkEnv(int platform) 
 {
-	if (platform <= PLATFORM_OLD || platform >= PLATFORM_NEW) {
-		LogE("Invalid platform\n");
-		return NULL;
-	}
+    if (platform <= PLATFORM_OLD || platform >= PLATFORM_NEW) {
+        LogE("Invalid platform\n");
+        return NULL;
+    }
 
-	SdkEnv *env = (SdkEnv *)calloc(1, sizeof(SdkEnv));
-	return env;
+    SdkEnv *env = (SdkEnv *)calloc(1, sizeof(SdkEnv));
+    return env;
 }
 
 /**
@@ -745,15 +733,15 @@ SdkEnv* newBlankSdkEnv(int platform)
  * texture .etc
  */
 static int initGlBuffers (SdkEnv *env) {
-	VALIDATE_NOT_NULL (env);
-	
-	glGenFramebuffers (1, &env->handle.fboId);
-	glGenTextures(1, &env->handle.textureId);
-	glBindTexture (GL_TEXTURE_2D, env->handle.textureId);
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    VALIDATE_NOT_NULL (env);
 
-	return 0;
+    glGenFramebuffers (1, &env->handle.fboId);
+    glGenTextures(1, &env->handle.textureId);
+    glBindTexture (GL_TEXTURE_2D, env->handle.textureId);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+    return 0;
 }
 
 /**
@@ -771,12 +759,21 @@ SdkEnv* newDefaultSdkEnv()
         return NULL;
     }
 
+#define CAPABILITY 1024
+    chrbuf_t *userCmd = newChrbuf (CAPABILITY);
+    if (NULL == userCmd) {
+        LogE ("Failed newChrbuf for userCmd\n");
+        freeSdkEnv (env);
+        return NULL;
+    }
+    env->userCmd = userCmd;
+
     char *vertSource = NULL;
     int count = readFile(VERT_SHADER_FILE, &vertSource);
     if (count < 0) {
         LogE("Failed open vertex shader file:%s\n", VERT_SHADER_FILE);
         freeSdkEnv(env);
-		return NULL;
+        return NULL;
     }
     Log("Read %s OK.\n", VERT_SHADER_FILE);
     env->userData.nVertSource = count;
@@ -794,20 +791,20 @@ SdkEnv* newDefaultSdkEnv()
     env->userData.fragSource = fragSource;
     Log("Read %s OK.\n", FRAG_SHADER_FILE);
 
-	if (attachShader(env, vertSource, fragSource) < 0) {
-		LogE("Failed attachShader\n");
+    if (attachShader(env, vertSource, fragSource) < 0) {
+        LogE("Failed attachShader\n");
         free (vertSource);
         free (fragSource);
-		freeSdkEnv(env);
-		return NULL;
-	}
+        freeSdkEnv(env);
+        return NULL;
+    }
 
-	if (initGlBuffers (env) < 0) {
-		LogE ("Failed init OpenGL buffers.\n");
-		return NULL;
-	}
+    if (initGlBuffers (env) < 0) {
+        LogE ("Failed init OpenGL buffers.\n");
+        return NULL;
+    }
 
-	env->status = SDK_STATUS_OK;
+    env->status = SDK_STATUS_OK;
 
     return env;
 }
@@ -818,8 +815,8 @@ SdkEnv* newDefaultSdkEnv()
  */
 int initEGL(SdkEnv *env)
 {
-	VALIDATE_NOT_NULL(env);
-	VALIDATE_NOT_NULL(env->egl.window);
+    VALIDATE_NOT_NULL(env);
+    VALIDATE_NOT_NULL(env->egl.window);
 
     env->egl.display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if (EGL_NO_DISPLAY == env->egl.display || EGL_SUCCESS != eglGetError()) {
@@ -847,14 +844,14 @@ int initEGL(SdkEnv *env)
         EGL_RED_SIZE,        8,
         EGL_NONE
     };
-	if (!eglChooseConfig(env->egl.display, cfg_attrs, configs, 2, &numConfigs) || numConfigs < 1) {
-		LogE("Failed eglChooseConfig\n");
-		return -1;
-	}
+    if (!eglChooseConfig(env->egl.display, cfg_attrs, configs, 2, &numConfigs) || numConfigs < 1) {
+        LogE("Failed eglChooseConfig\n");
+        return -1;
+    }
 
-	EGLint surface_attrs[] = {
-		EGL_NONE
-	};
+    EGLint surface_attrs[] = {
+        EGL_NONE
+    };
     env->egl.surface = eglCreateWindowSurface(env->egl.display, configs[0], env->egl.window, surface_attrs);
 
     if (EGL_NO_SURFACE == env->egl.surface) {
@@ -886,7 +883,7 @@ int initEGL(SdkEnv *env)
     eglQuerySurface(env->egl.display, env->egl.surface, EGL_HEIGHT, &env->egl.height);
     Log("EGL Window Surface %d x %d\n", env->egl.width, env->egl.height);
 
-	env->type = ON_SCREEN_RENDER;
+    env->type = ON_SCREEN_RENDER;
 
     return 0;
 }
@@ -898,41 +895,41 @@ int initEGL(SdkEnv *env)
  *      >= 0 file length
  */
 static int readFileFromAssets(const SdkEnv *sdk, 
-		const char *fname, 
-		char **mem) {
+        const char *fname, 
+        char **mem) {
 
-	VALIDATE_NOT_NULL2(sdk, sdk->userData.platformData);
-	VALIDATE_NOT_NULL2(fname, mem);
+    VALIDATE_NOT_NULL2(sdk, sdk->userData.platformData);
+    VALIDATE_NOT_NULL2(fname, mem);
 
-	AAssetManager *assetMgr = (AAssetManager *)(sdk->userData.platformData);
-	AAsset *asset = AAssetManager_open(assetMgr, fname, AASSET_MODE_UNKNOWN);
-	if (NULL == asset) {
-		LogE("Failed open %s by asset manger\n", fname);
-		return -1;
-	}
-	size_t size = AAsset_getLength(asset);
-	if (size <= 0) {
-		LogE("%s length is invalid (file length must > 0)\n", fname);
-		AAsset_close (asset);
-		return -1;
-	}
-	*mem = calloc(1, size + 1);
-	if (NULL == *mem) {
-		LogE("Failed calloc memory for %s\n", fname);
-		AAsset_close (asset);
-		return -1;
-	}
+    AAssetManager *assetMgr = (AAssetManager *)(sdk->userData.platformData);
+    AAsset *asset = AAssetManager_open(assetMgr, fname, AASSET_MODE_UNKNOWN);
+    if (NULL == asset) {
+        LogE("Failed open %s by asset manger\n", fname);
+        return -1;
+    }
+    size_t size = AAsset_getLength(asset);
+    if (size <= 0) {
+        LogE("%s length is invalid (file length must > 0)\n", fname);
+        AAsset_close (asset);
+        return -1;
+    }
+    *mem = calloc(1, size + 1);
+    if (NULL == *mem) {
+        LogE("Failed calloc memory for %s\n", fname);
+        AAsset_close (asset);
+        return -1;
+    }
 
-	if (AAsset_read(asset, *mem, size) != size) {
-		LogE("Failed read %s\n", fname);
-		AAsset_close(asset);
-		free (*mem);
-		*mem = NULL;
-		return -1;
-	}
+    if (AAsset_read(asset, *mem, size) != size) {
+        LogE("Failed read %s\n", fname);
+        AAsset_close(asset);
+        free (*mem);
+        *mem = NULL;
+        return -1;
+    }
 
-	AAsset_close(asset);
-	return size + 1;
+    AAsset_close(asset);
+    return size + 1;
 }
 
 
@@ -941,94 +938,132 @@ static int readFileFromAssets(const SdkEnv *sdk,
  */
 int initSdkEnv(SdkEnv *env) 
 {
-	VALIDATE_NOT_NULL(env);
+    VALIDATE_NOT_NULL(env);
 
-	uint32_t t_begin, t_finish;
+    uint32_t t_begin, t_finish;
 
-	if (env->type == SDK_STATUS_OK) {
-		LogE("SDK is already initialized\n");
-		return -1;
-	}
+    if (env->type == SDK_STATUS_OK) {
+        LogE("SDK is already initialized\n");
+        return -1;
+    }
 
-	if (NULL == env->userData.platformData) {
-		LogE("Please call setPlatformData first!\n");
-		return -1;
-	}
+    if (NULL == env->userData.platformData) {
+        LogE("Please call setPlatformData first!\n");
+        return -1;
+    }
 
-	if (NULL != env->egl.window) {	// On-screen render
-		t_begin = getCurrentTime();
-		if (initEGL(env) < 0) {
-			LogE("Failed initEGL\n");
-			return -1;
-		}
-		t_finish = getCurrentTime();
-		Log("Initialize EGL OK cost %d ms.\n", t_finish - t_begin);
+    if (NULL != env->egl.window) {	// On-screen render
+        t_begin = getCurrentTime();
+        if (initEGL(env) < 0) {
+            LogE("Failed initEGL\n");
+            return -1;
+        }
+        t_finish = getCurrentTime();
+        Log("Initialize EGL OK cost %d ms.\n", t_finish - t_begin);
 
-		ANativeWindow *window = env->egl.window;
-		env->userData.width = ANativeWindow_getWidth(window);
-		env->userData.height = ANativeWindow_getHeight(window);
-		Log ("Native window %d x %d\n", 
-				env->userData.width, env->userData.height);
+        ANativeWindow *window = env->egl.window;
+        env->userData.width = ANativeWindow_getWidth(window);
+        env->userData.height = ANativeWindow_getHeight(window);
+        Log ("Native window %d x %d\n", 
+                env->userData.width, env->userData.height);
 
-		if (env->egl.width != env->userData.width ||
-				env->egl.height != env->userData.height) {
-			LogE("EGL and Native window size are not equal\n");
-			return -1;
-		}
-	} else {	// Off-screen render
-		t_begin = getCurrentTime();
-		if (initDefaultEGL(env) < 0) {
-			LogE("Failed initDefaultEGL\n");
-			return -1;
-		}
-		t_finish = getCurrentTime();
-		Log("Initialize Default EGL OK cost %d ms.\n", t_finish - t_begin);
-	}
-  
+        if (env->egl.width != env->userData.width ||
+                env->egl.height != env->userData.height) {
+            LogE("EGL and Native window size are not equal\n");
+            return -1;
+        }
+    } else {	// Off-screen render
+        t_begin = getCurrentTime();
+        if (initDefaultEGL(env) < 0) {
+            LogE("Failed initDefaultEGL\n");
+            return -1;
+        }
+        t_finish = getCurrentTime();
+        Log("Initialize Default EGL OK cost %d ms.\n", t_finish - t_begin);
+    }
+
 #define VERT_SHDR_NAME "vert.shdr"
-	t_begin = getCurrentTime();
-	char *vertSource = NULL;
-	int nVertSource = readFileFromAssets (env, VERT_SHDR_NAME, &vertSource);
-	if (nVertSource < 0) {
-		LogE ("Failed read assets file:%s\n", VERT_SHDR_NAME);
-	}
-	env->userData.nVertSource = nVertSource;
+    t_begin = getCurrentTime();
+    char *vertSource = NULL;
+    int nVertSource = readFileFromAssets (env, VERT_SHDR_NAME, &vertSource);
+    if (nVertSource < 0) {
+        LogE ("Failed read assets file:%s\n", VERT_SHDR_NAME);
+    }
+    env->userData.nVertSource = nVertSource;
     env->userData.vertSource = vertSource; 
-	t_finish = getCurrentTime();
+    t_finish = getCurrentTime();
     Log("Load %s OK cost %d ms.\n", VERT_SHDR_NAME, t_finish - t_begin);
 
 #define FRAG_SHDR_NAME "frag.shdr"
-	char *fragSource = NULL;
-	int nFragSource = readFileFromAssets (env, FRAG_SHDR_NAME, &fragSource);
-	if (nFragSource < 0) {
-		LogE("Failed read assets file:%s\n", FRAG_SHDR_NAME);
-	}
-	env->userData.nFragSource = nFragSource;
+    char *fragSource = NULL;
+    int nFragSource = readFileFromAssets (env, FRAG_SHDR_NAME, &fragSource);
+    if (nFragSource < 0) {
+        LogE("Failed read assets file:%s\n", FRAG_SHDR_NAME);
+    }
+    env->userData.nFragSource = nFragSource;
     env->userData.fragSource = fragSource;
-	t_finish = getCurrentTime();
+    t_finish = getCurrentTime();
     Log("Load %s OK cost %d ms.\n", FRAG_SHDR_NAME, t_finish - t_begin);
 
-	if (attachShader(env, vertSource, fragSource) < 0) {
-		LogE("Failed attachShader\n");
-		return -1;
-	}
+    if (attachShader(env, vertSource, fragSource) < 0) {
+        LogE("Failed attachShader\n");
+        return -1;
+    }
 
-	if (initGlBuffers (env) < 0) {
-		LogE ("Failed init OpenGL buffers\n");
-	}
+    if (initGlBuffers (env) < 0) {
+        LogE ("Failed init OpenGL buffers\n");
+    }
 
-	env->status = SDK_STATUS_OK;
+    env->status = SDK_STATUS_OK;
 
     return 0;
 }
 
+/*
+ * Set input image path
+ */
+int setImagePath (SdkEnv* env, const char* path)
+{
+    VALIDATE_NOT_NULL2 (env, path);
+    // TODO
+    // use chrbuf
+    //env->userData.path = path;
+    env->userData.active = ACTIVE_PATH;
+
+    return 0;
+}
+
+/*
+ * Set image effect command
+ */
 int setEffectCmd(SdkEnv* env, const char* cmd)
 {
-	LOG_ENTRY;
+    LOG_ENTRY;
     VALIDATE_NOT_NULL2(env, cmd);
+
+    //TODO
+    // reUse bitmap_t
+    //
+    if (NULL == env->userData.path ||
+            NULL == env->userData.param) {
+        LogE ("No input image\n");
+        return -1;
+    }
+
     Log ("EffectCmd:%s\n", cmd);
 
-    if (NULL == env->userCmd.cmd || strcmp(cmd, env->userCmd.cmd) != 0) {
+    if (strcmp(cmd, env->userCmd->base) == 0) {
+        Log ("The same effect cmd\n");
+        return 0;
+    }
+
+    // input image by specified path
+    if (ACTIVE_PATH == env->userData.active) {
+        if (NULL == env->userData.path) {
+            LogE ("Please setImagePath first\n");
+            return -1;
+        }
+
         Bitmap_t *img = (Bitmap_t *) calloc(1, sizeof(Bitmap_t));
         if (NULL == img) {
             Log("Failed calloc mem or bitmap\n");
@@ -1036,18 +1071,12 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
         }
 
         uint32_t begin_t = getCurrentTime();
-#define PATH "/data/local/tmp/bg.png"
-        if(read_png(PATH, img) < 0) {
+        if(read_png(env->userData.path, img) < 0) {
             LogE("Failed read png\n");
             return -1;
         }
         uint32_t end_t = getCurrentTime();
-        Log("Read %s cost %d ms\n", PATH, end_t - begin_t);
-
-        if (NULL != env->userCmd.cmd) {
-            free (env->userCmd.cmd);
-            env->userCmd.cmd = NULL;
-        }
+        Log("Read %s cost %d ms\n", env->userData.path, end_t - begin_t);
 
         // Just for test write_jpeg
 #if 1
@@ -1059,97 +1088,101 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
         Log ("write 2.jpg cost %d ms\n", end_t - begin_t);
 #endif
 
+        // In off-screen render, We must reAssign value.
+        // Otherwise, the elemets will be invisible
+        if (OFF_SCREEN_RENDER == env->type) {
+            env->egl.width = img->width;
+            env->egl.height = img->height;
+        }
 
-
-
-		// In off-screen render, We must reAssign value.
-		// Otherwise, the elemets will be invisible
-		if (OFF_SCREEN_RENDER == env->type) {
-			env->egl.width = img->width;
-			env->egl.height = img->height;
-		}
-
-        env->userCmd.cmd = strdup (cmd);
+        clearChrbuf (env->userCmd);
+        appendChrbuf (env->userCmd, cmd);
         env->userData.param = (void *) img;
         env->userData.active = ACTIVE_PARAM;
 
-		int level = 0;
+        int level = 0;
 #define BORDER 0
-		glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, img->width, img->height, BORDER, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+        glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, img->width, img->height, BORDER, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    }
+    // reUse image in memory
+    else if (ACTIVE_PARAM == env->userData.active) {
+        if (NULL == env->userData.param) {
+            LogE ("No reuse image\n");
+            return -1;
+        }
 
-    } else {
-        Log ("EffectCmd has no change\n");
+        Log ("Reuse image\n");
     }
 
-	LOG_EXIT;
+    LOG_EXIT;
     return 0;
 }
 
 static void onDraw(SdkEnv *env) {
-	if (NULL == env) {
-		LogE ("NULL pointer exception in onDraw()\n");
-		return;
-	}
-	Log("onDraw()\n");
+    if (NULL == env) {
+        LogE ("NULL pointer exception in onDraw()\n");
+        return;
+    }
+    Log("onDraw()\n");
 
 #define POINT_COUNT 5
-	// start vertex
-	GLfloat vertex[POINT_COUNT * 3];
-	int i = 0;
-	int start_angle = 18;
-	int delta_angle = 72;
-	float factor = (float) env->egl.width / (float)env->egl.height;
-	while ( i < POINT_COUNT * 3 ) {
-		float angle = start_angle + (i / 3) * delta_angle;
-		vertex[i] = cos ( M_PI * angle / 180.0f);
-		vertex[i+1] = sin (M_PI * angle / 180.0f) * factor;
-		vertex[i+2] = 0;
-		i += 3;
-	}
+    // start vertex
+    GLfloat vertex[POINT_COUNT * 3];
+    int i = 0;
+    int start_angle = 18;
+    int delta_angle = 72;
+    float factor = (float) env->egl.width / (float)env->egl.height;
+    while ( i < POINT_COUNT * 3 ) {
+        float angle = start_angle + (i / 3) * delta_angle;
+        vertex[i] = cos ( M_PI * angle / 180.0f);
+        vertex[i+1] = sin (M_PI * angle / 180.0f) * factor;
+        vertex[i+2] = 0;
+        i += 3;
+    }
 
-	GLfloat color[] = {
-		1.0f, 0.0f, 1.0f, 1.0f
-	};
+    GLfloat color[] = {
+        1.0f, 0.0f, 1.0f, 1.0f
+    };
 
-	glViewport(0, 0, env->egl.width, env->egl.height);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glClearColor (0.0f, 0.0f, 0.0f, 1.0f);
-	glUseProgram(env->handle.program);
+    glViewport(0, 0, env->egl.width, env->egl.height);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glClearColor (0.0f, 0.0f, 0.0f, 1.0f);
+    glUseProgram(env->handle.program);
 
-	if ( OFF_SCREEN_RENDER == env->type ) {
-		glBindFramebuffer (GL_FRAMEBUFFER, env->handle.fboId);
+    if ( OFF_SCREEN_RENDER == env->type ) {
+        glBindFramebuffer (GL_FRAMEBUFFER, env->handle.fboId);
 
-		glFramebufferTexture2D (
-				GL_FRAMEBUFFER, 
-				GL_COLOR_ATTACHMENT0,	 
-				GL_TEXTURE_2D,
-				env->handle.textureId,
-				0);
+        glFramebufferTexture2D (
+                GL_FRAMEBUFFER, 
+                GL_COLOR_ATTACHMENT0,	 
+                GL_TEXTURE_2D,
+                env->handle.textureId,
+                0);
 
-		GLenum status = glCheckFramebufferStatus (GL_FRAMEBUFFER);
-		if (status != GL_FRAMEBUFFER_COMPLETE) {
-			LogE ("Framebuffer not ready. status code:0x%04x\n", status);
-		}
-	}
+        GLenum status = glCheckFramebufferStatus (GL_FRAMEBUFFER);
+        if (status != GL_FRAMEBUFFER_COMPLETE) {
+            LogE ("Framebuffer not ready. status code:0x%04x\n", status);
+        }
+    }
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, vertex);
-	glEnableVertexAttribArray(0);
-	glUniform4fv(env->handle.color, 1, color);
-	glDrawArrays(GL_TRIANGLE_FAN, 0, POINT_COUNT);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, vertex);
+    glEnableVertexAttribArray(0);
+    glUniform4fv(env->handle.color, 1, color);
+    glDrawArrays(GL_TRIANGLE_FAN, 0, POINT_COUNT);
 
-	// Only rendering with OpenGL ES 2.0, so
-	// I simply call glFinish()
-	uint32_t t1 = getCurrentTime ();	
-	glFinish();
-	uint32_t t2 = getCurrentTime ();
-	Log ("Render cost %d ms\n", (t2 - t1) );
+    // Only rendering with OpenGL ES 2.0, so
+    // I simply call glFinish()
+    uint32_t t1 = getCurrentTime ();	
+    glFinish();
+    uint32_t t2 = getCurrentTime ();
+    Log ("Render cost %d ms\n", (t2 - t1) );
 
-	if (ON_SCREEN_RENDER == env->type ) {
-		Log ("On screen render\n");
-		swapEglBuffers (env);
-	} else if (OFF_SCREEN_RENDER == env->type) {
-		Log ("Off screen render\n");
-	}
+    if (ON_SCREEN_RENDER == env->type ) {
+        Log ("On screen render\n");
+        swapEglBuffers (env);
+    } else if (OFF_SCREEN_RENDER == env->type) {
+        Log ("Off screen render\n");
+    }
 }
 
 static void onCreate(SdkEnv *env) {
@@ -1162,8 +1195,8 @@ static void onDestroy(SdkEnv *env) {
 
 int setEglNativeWindow(SdkEnv *env, EGLNativeWindowType window)
 {
-	VALIDATE_NOT_NULL2(env, window);
-	env->egl.window = window;
+    VALIDATE_NOT_NULL2(env, window);
+    env->egl.window = window;
 }
 
 /**
@@ -1173,44 +1206,44 @@ int setEglNativeWindow(SdkEnv *env, EGLNativeWindowType window)
  */
 void swapEglBuffers(SdkEnv *env)
 {
-	if (NULL != env) {
+    if (NULL != env) {
 
-		// Only rendering with OpenGL ES 2.0, so
-		// No need call funtions below to synchronize
-		/*
-        eglWaitClient ();
-		eglWaitNative (EGL_CORE_NATIVE_ENGINE);
-		*/
+        // Only rendering with OpenGL ES 2.0, so
+        // No need call funtions below to synchronize
+        /*
+           eglWaitClient ();
+           eglWaitNative (EGL_CORE_NATIVE_ENGINE);
+         */
 
-		eglSwapBuffers (env->egl.display, env->egl.surface);
-	}
+        eglSwapBuffers (env->egl.display, env->egl.surface);
+    }
 }
 
 int setPlatformData(SdkEnv *env, void *data)
 {
-	VALIDATE_NOT_NULL2(env, data);
-	env->userData.platformData = data;
+    VALIDATE_NOT_NULL2(env, data);
+    env->userData.platformData = data;
 }
 
 void onSdkCreate(SdkEnv *env)
 {
-	if (NULL != env && NULL != env->onCreate) {
-		env->onCreate(env);
-	}
+    if (NULL != env && NULL != env->onCreate) {
+        env->onCreate(env);
+    }
 }
 
 void onSdkDraw(SdkEnv *env)
 {
-	if (NULL != env && NULL != env->onDraw) {
-		env->onDraw(env);
-	}
+    if (NULL != env && NULL != env->onDraw) {
+        env->onDraw(env);
+    }
 }
 
 void onSdkDestroy(SdkEnv *env)
 {
-	if (NULL != env && NULL != env->onDestroy) {
-		env->onDestroy(env);
-	}
+    if (NULL != env && NULL != env->onDestroy) {
+        env->onDestroy(env);
+    }
 }
 
 /**
@@ -1221,11 +1254,11 @@ void onSdkDestroy(SdkEnv *env)
  */
 uint32_t getCurrentTime() 
 {
-	struct timeval tv;
-	if (gettimeofday(&tv, NULL) < 0) {
-		return 0;
-	}
-	return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL) < 0) {
+        return 0;
+    }
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
 /**
@@ -1249,7 +1282,7 @@ int read_jpeg(const char *path, Bitmap_t *mem)
     jpeg_create_decompress (&jds);
     jpeg_stdio_src (&jds, fp);
     jpeg_read_header (&jds, TRUE);
-    
+
     Log("[%s %d x %d %d]\n", path, jds.image_width, jds.image_height, jds.num_components);
 
     mem->base = (char *) calloc (jds.image_width * jds.image_height * jds.num_components, 1);

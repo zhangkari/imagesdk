@@ -144,6 +144,11 @@ void onSdkDestroy(SdkEnv *env);
  */
 int setEffectCmd(SdkEnv* env, const char* cmd);
 
+/*
+ * Set input image path
+ */
+ int setImagePath (SdkEnv* env, const char* path);
+
 /**
  * Read file to memory. Do not forget to free memory
  */

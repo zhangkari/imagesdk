@@ -12,26 +12,111 @@
 #include "cJSON.h"
 
 static int parseNormalEffect (const cJSON *json, eftcmd_t *eftcmd) {
-	return -1;
+    if (NULL == json || NULL == eftcmd) {
+        return -1;
+    }
+    eftcmd->cmd = ec_NORMAL;
+    eftcmd->paramCnt = 0;
+    eftcmd->paramSet = NULL;
+    eftcmd->invalid = 0;
+    return 0;
 }
 
-static int parseRotateEffect (const cJSON *json, eftcmd_t *eftcmd) {
-	return -1;
+static int parseRotateEffect (cJSON *json, eftcmd_t *eftcmd) {
+    if (NULL == json || NULL == eftcmd){
+        return -1;
+    }
+	cJSON *jparam = cJSON_GetObjectItem (json, "degree");
+    if (NULL == jparam) {
+        return -1;
+    }
+
+	if (jparam->type != cJSON_Number) {
+		LogE ("parseRotateEffect error:Invalid param type\n");
+		return -1;
+	}
+    
+    eftcmd->cmd = ec_ROTATE;
+    eftcmd->paramCnt = 1;
+    *(eftcmd->paramSet) = jparam->valueint;
+    eftcmd->invalid = 0;
+
+    return 0;
 }
 
-static int parseScaleEffect (const cJSON *json, eftcmd_t *eftcmd) {
-	return -1;
+static int parseScaleEffect (cJSON *json, eftcmd_t *eftcmd) {
+    if (NULL == json || NULL == eftcmd){
+        return -1;
+    }
+	cJSON *jparam = cJSON_GetObjectItem (json, "percent");
+    if (NULL == jparam) {
+        return -1;
+    }
+
+	if (jparam->type != cJSON_Number) {
+		LogE ("parseScaleEffect error:Invalid param type\n");
+		return -1;
+	}
+    
+    eftcmd->cmd = ec_SCALE;
+    eftcmd->paramCnt = 1;
+    *(eftcmd->paramSet) = jparam->valueint;
+    eftcmd->invalid = 0;
+
+    return 0;
 }
 
-static int parseClipEffect (const cJSON *json, eftcmd_t *eftcmd) {
-	return -1;
+static int parseClipEffect (cJSON *json, eftcmd_t *eftcmd) {
+    if (NULL == json || NULL == eftcmd){
+        return -1;
+    }
+    cJSON *jparam = cJSON_GetObjectItem (json, "param");
+    if (NULL == jparam) {
+        return -1;
+    }
+
+    cJSON *jx = cJSON_GetObjectItem (jparam, "x");
+    if (jx->type != cJSON_Number) {
+        LogE ("parseClipEffect error:Invalid param type\n");
+        return -1;
+    }
+
+    cJSON *jy = cJSON_GetObjectItem (jparam, "y");
+    if (jy->type != cJSON_Number) {
+        LogE ("parseClipEffect error:Invalid param type\n");
+        return -1;
+    }
+
+    cJSON *jw = cJSON_GetObjectItem (jparam, "w");
+    if (jw->type != cJSON_Number) {
+        LogE ("parseClipEffect error:Invalid param type\n");
+        return -1;
+    }
+
+    cJSON *jh = cJSON_GetObjectItem (jparam, "h");
+    if (jy->type != cJSON_Number) {
+        LogE ("parseClipEffect error:Invalid param type\n");
+        return -1;
+    }
+
+    eftcmd->cmd = ec_CLIP;
+    eftcmd->paramCnt = 4;
+    eftcmd->paramSet[0] = jx->valueint;
+    eftcmd->paramSet[1] = jy->valueint;
+    eftcmd->paramSet[2] = jw->valueint;
+    eftcmd->paramSet[3] = jh->valueint;
+    eftcmd->invalid = 0;
+
+    return -1;
 }
 
 static int parseSkinEffect (const cJSON *json, eftcmd_t *eftcmd) {
+    LogE ("Not implemented yet!\n");
 	return -1;
 }
 
 static int parseEyeEffect (const cJSON *json, eftcmd_t *eftcmd) {
+    LogE ("Not implemented yet!\n");
 	return -1;
 }
 
@@ -66,15 +151,40 @@ int parseEffectCmd(const char *usercmd, eftcmd_t *eftcmd) {
 		return -1;
 	}
 
-	// TODO
-	assert (0);
-
 	const char *eft = jeft->valuestring;
 	if (strcmp (eft, "Normal") == 0) {
-
-	} else if (strcmp(eft, "Rotate") == 0) {
-
+        if (parseNormalEffect (json, eftcmd) < 0) {
+            LogE ("Failed parseNormalEffect\n");
+        }
 	}
+    else if (strcmp(eft, "Rotate") == 0) {
+        if (parseRotateEffect (json, eftcmd) < 0) {
+            LogE ("Failed parseRotateEffect\n");
+        }
+	}
+    else if (strcmp(eft, "Scale") == 0) {
+        if (parseScaleEffect (json, eftcmd) < 0) {
+            LogE ("Failed parseScaleEffect\n");
+        }
+	}
+	else if (strcmp (eft, "Clip") == 0) {
+        if (parseClipEffect (json, eftcmd) < 0) {
+            LogE ("Failed parseClipEffect\n");
+        }
+	}
+    else if (strcmp(eft, "Skin") == 0) {
+        if (parseSkinEffect (json, eftcmd) < 0) {
+            LogE ("Failed parseSkinEffect\n");
+        }
+	}
+    else if (strcmp(eft, "Eye") == 0) {
+        if (parseEyeEffect (json, eftcmd) < 0) {
+            LogE ("Failed parseEyeEffect\n");
+        }
+	}
+    else {
+        LogE ("Invalid effect command\n");
+    }
 
 	cJSON_Delete (json);
 	return -1;

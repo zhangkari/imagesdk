@@ -86,7 +86,7 @@ int appendChrbuf (chrbuf_t *buf, const char *str) {
 	int free = buf->capability - buf->used;
 	int len = strlen (str);
 	ensureChrbufCap (buf, buf->capability + len - free);
-	strcat (buf->base + buf->used, str);
+	strcpy (buf->base + buf->used, str);
 	buf->used += len;
 	return 0;
 }
