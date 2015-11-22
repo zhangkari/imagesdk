@@ -14,11 +14,13 @@
 #include <android/asset_manager.h>
 #include <android_native_app_glue.h>
 #include <GLES2/gl2.h>
-#include "png.h"
-#include "jpeglib.h"
-#include "imgsdk.h"
-#include "eftcmd.h"
 #include "chrbuf.h"
+#include "comm.h"
+#include "eftcmd.h"
+#include "imgsdk.h"
+#include "jpeglib.h"
+#include "png.h"
+#include "utility.h"
 
 typedef enum ActiveType {
     ACTIVE_NONE  = 0,
@@ -33,7 +35,8 @@ typedef struct {
     GLuint			width;			// user's image width
     GLuint			height;			// user's image height
     GLchar			*param;			// user's parameter
-    GLchar			*path;			// user's image path
+    GLchar			*inputPath;		// input image path
+    GLchar			*outputPath;	// output image path
     ActiveType		active;			// which is active ( param or pixel) 
     PixForm_e		pixfmt;			// pixel format
     PlatformType	platform;		// 0 Android, 1 iOS
@@ -140,9 +143,9 @@ int sdkMain(SdkEnv *env)
 }
 
 int main(int argc, char **argv) {
-    if (2 != argc) {
+    if (3 != argc) {
         Log("Usage:\n");
-        Log("  %s path\n", argv[0]);
+        Log("  %s input output\n", argv[0]);
         return -1;
     }
 
@@ -150,17 +153,17 @@ int main(int argc, char **argv) {
     if (NULL == env) {
         LogE("Failed get SdkEnv instance\n");
     }
+    setInputImagePath (env, argv[1]);
+    setOutputImagePath (env, argv[2]);
 
     sdkMain (env);
-    setEffectCmd (env, "test cmd ");
+    setEffectCmd (env, "{effect:\"Normal\"}");
     onSdkDraw (env);
 
     Bitmap_t *img = (Bitmap_t *) env->userData.param;
     uint32_t begin_t = getCurrentTime();
 
-    //glBindFramebuffer(GL_FRAMEBUFFER, env->handle.fboId);
     glBindTexture(GL_TEXTURE, env->handle.textureId);
-
     memset (img->base, 0, img->width * img->height * img->form);
 
     // copy pixels from GPU memory to CPU memory
@@ -171,19 +174,20 @@ int main(int argc, char **argv) {
     if (GL_NO_ERROR != errCode ) { 
         Log ("Failed read pixles, error code:0x%04x\n", errCode);
     }
-
     uint32_t finish_t = getCurrentTime();
     LogD("Read pixel data cost %d ms\n", (finish_t - begin_t));
 
     begin_t = getCurrentTime();
-
-#define DEST_PATH  "2.png"
-    if (write_png(DEST_PATH, img) < 0) {
-        LogE("Failed write png\n");
+    if (NULL != env->userData.outputPath) {
+        if (saveImage (env->userData.outputPath, img) < 0) {
+            LogE ("Failed saveImage\n");
+        }else { 
+            finish_t = getCurrentTime();
+            LogD("Save %s cost %d ms\n", 
+                    env->userData.outputPath,
+                    (finish_t - begin_t));
+        }
     }
-
-    finish_t = getCurrentTime();
-    LogD("Save %s cost %d ms\n", DEST_PATH, (finish_t - begin_t));
 
     freeSdkEnv(env);
     //onSdkDestroy(env);
@@ -617,9 +621,9 @@ int freeSdkEnv(SdkEnv *env)
     env->egl.context = EGL_NO_CONTEXT;
     env->egl.surface = EGL_NO_SURFACE;
     if (ACTIVE_PATH == env->userData.active 
-            && NULL != env->userData.path) {
-        free (env->userData.path);
-        env->userData.path = NULL;
+            && NULL != env->userData.inputPath) {
+        free (env->userData.inputPath);
+        env->userData.inputPath = NULL;
     }
 
     if (ACTIVE_PARAM == env->userData.active 
@@ -632,6 +636,16 @@ int freeSdkEnv(SdkEnv *env)
     if (NULL != env->userCmd) {
         freeChrbuf (env->userCmd);
         env->userCmd = NULL;
+    }
+
+    if (NULL != env->userData.inputPath) {
+        free (env->userData.inputPath);
+        env->userData.inputPath = NULL;
+    }
+
+    if (NULL != env->userData.outputPath) {
+        free (env->userData.outputPath);
+        env->userData.outputPath = NULL;
     }
 
     releaseShader(env);
@@ -1022,16 +1036,36 @@ int initSdkEnv(SdkEnv *env)
 /*
  * Set input image path
  */
-int setImagePath (SdkEnv* env, const char* path)
+int setInputImagePath (SdkEnv* env, char* path)
 {
     VALIDATE_NOT_NULL2 (env, path);
-    // TODO
-    // use chrbuf
-    //env->userData.path = path;
+    if (NULL != env->userData.inputPath) {
+        free (env->userData.inputPath);
+    }
+    env->userData.inputPath = strdup (path);
     env->userData.active = ACTIVE_PATH;
-
     return 0;
 }
+
+/*
+ * Set output image path
+ * Parameters:
+ *              env:    sdk context
+ *              path:   output image path
+ *  Return:
+ *               0  OK
+ *              -1  ERROR
+ */
+int setOutputImagePath (SdkEnv* env, char* path)
+{
+    VALIDATE_NOT_NULL2 (env, path);
+    if (NULL != env->userData.outputPath) {
+        free (env->userData.outputPath);
+    }
+    env->userData.outputPath = strdup(path);
+    return 0;
+}
+
 
 /*
  * Set image effect command
@@ -1041,16 +1075,18 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
     LOG_ENTRY;
     VALIDATE_NOT_NULL2(env, cmd);
 
-    //TODO
-    // reUse bitmap_t
-    //
-    if (NULL == env->userData.path ||
+    env->effectCmd.invalid = 1;
+    if (parseEffectCmd (cmd, &env->effectCmd) < 0) {
+        LogE ("Failed parseEffectCmd \n");
+    }
+
+    if (NULL == env->userData.inputPath &&
             NULL == env->userData.param) {
         LogE ("No input image\n");
         return -1;
     }
 
-    Log ("EffectCmd:%s\n", cmd);
+    Log ("effect cmd:%s\n", cmd);
 
     if (strcmp(cmd, env->userCmd->base) == 0) {
         Log ("The same effect cmd\n");
@@ -1059,7 +1095,7 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
 
     // input image by specified path
     if (ACTIVE_PATH == env->userData.active) {
-        if (NULL == env->userData.path) {
+        if (NULL == env->userData.inputPath) {
             LogE ("Please setImagePath first\n");
             return -1;
         }
@@ -1071,21 +1107,30 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
         }
 
         uint32_t begin_t = getCurrentTime();
-        if(read_png(env->userData.path, img) < 0) {
-            LogE("Failed read png\n");
+        if(loadImage (env->userData.inputPath, img) < 0) {
+            LogE("Failed loadImage\n");
             return -1;
         }
         uint32_t end_t = getCurrentTime();
-        Log("Read %s cost %d ms\n", env->userData.path, end_t - begin_t);
+        Log("Load %s cost %d ms\n", env->userData.inputPath, end_t - begin_t);
+    
 
-        // Just for test write_jpeg
-#if 1
-        begin_t = getCurrentTime();
-        if (write_jpeg ("2.jpg", img) < 0) {
-            LogE ("Failed write 2.jpg\n");
+#ifdef _DEBUG_
+        ///////////////////////////////////////
+        // save iamge for test
+        // == begin test
+        begin_t = getCurrentTime ();
+        char destname[64];
+        memset (destname, 0, 64);
+        strcpy (destname, "test_");
+        strcat (destname, env->userData.outputPath);
+        if(saveImage (destname, img) < 0) {
+            LogE("Failed saveImage\n");
         }
         end_t = getCurrentTime();
-        Log ("write 2.jpg cost %d ms\n", end_t - begin_t);
+        Log("Save %s cost %d ms\n", destname, end_t - begin_t);
+        // == end test
+        //////////////////////////////////////
 #endif
 
         // In off-screen render, We must reAssign value.
@@ -1285,6 +1330,9 @@ int read_jpeg(const char *path, Bitmap_t *mem)
 
     Log("[%s %d x %d %d]\n", path, jds.image_width, jds.image_height, jds.num_components);
 
+    mem->width = jds.image_width;
+    mem->height = jds.image_height;
+    mem->form =  jds.num_components;
     mem->base = (char *) calloc (jds.image_width * jds.image_height * jds.num_components, 1);
     assert (NULL != mem->base);
 
@@ -1324,16 +1372,14 @@ int write_jpeg(const char *path, Bitmap_t *mem)
     jcs.image_width = mem->width;
     jcs.image_height = mem->height;
 
-#if 0
+#ifdef _DEBUG_ 
     assert (mem->form >= GRAY && mem->form <= RGBA32);
     assert (mem->form != RGB16);
 #endif
 
-    Log ("stub 1 \n");
-
     int colorSpace = JCS_GRAYSCALE;
     int components = mem->form;
-    if (components > 3) {
+    if (components >= 3) {
         components = 3;
         colorSpace = JCS_RGB;
     }
@@ -1343,11 +1389,7 @@ int write_jpeg(const char *path, Bitmap_t *mem)
     jpeg_set_defaults (&jcs);
 #define QUALITY 80
     jpeg_set_quality (&jcs, QUALITY, TRUE);
-
     jpeg_start_compress (&jcs, TRUE);
-
-    Log ("stub 2 \n");
-
     JSAMPROW row_pointer[1];
     int row_stride = mem->width * mem->form;
 
@@ -1355,14 +1397,66 @@ int write_jpeg(const char *path, Bitmap_t *mem)
         row_pointer[0] = (JSAMPROW)(mem->base + jcs.next_scanline * row_stride);
         jpeg_write_scanlines (&jcs, row_pointer, 1);
     }
-
-    Log ("stub 3 \n");
-
     jpeg_finish_compress (&jcs);
     jpeg_destroy_compress (&jcs);
     fclose (fp);
-
-    Log ("stub 4 \n");
-
     return 0;
+}
+
+/**
+ * Load image
+ * Parameters:
+ *      path:   input path 
+ *      mem:    memory for decoding
+ * Return:
+ *           0  OK
+ *          -1  ERROR
+ */
+int loadImage (const char *path, Bitmap_t *mem) {
+    VALIDATE_NOT_NULL2 (path, mem);
+    const char const *postfix = getFilePostfix (path);
+    if (NULL == postfix) {
+        LogE ("Failed getFilePostfix in loadImage\n");
+        return -1;
+    }
+
+    if (strcasecmp (postfix, "jpg") == 0) {
+        return read_jpeg (path, mem);
+    }
+    else if (strcasecmp (postfix, "png") == 0) {
+        return read_png (path, mem);
+    }
+    else {
+        LogE ("Invalid postfix name (%s) in loadImage\n", postfix);
+        return -1;
+    }
+}
+
+/**
+ * Save image
+ * Parameters:
+ *      path:   output path 
+ *      mem:    bitmap in memory
+ * Return:
+ *           0  OK
+ *          -1  ERROR
+ */
+int saveImage (const char *path, Bitmap_t *mem) {
+    VALIDATE_NOT_NULL2 (path, mem);
+    const char const *postfix = getFilePostfix (path);
+    if (NULL == postfix) {
+        LogE ("Failed getFilePostfix in saveImage\n");
+        return -1;
+    }
+
+    if (strcasecmp (postfix, "jpg") == 0) {
+        return write_jpeg (path, mem);
+    }
+    else if (strcasecmp (postfix, "png") == 0) {
+        return write_png (path, mem);
+    }
+    else {
+        LogE ("Invalid postfix name (%s) in saveImage\n", postfix);
+        return -1;
+    }
 }

@@ -41,6 +41,29 @@ typedef struct SdkEnv SdkEnv;
 #define FRAG_SHADER_FILE "frag.shdr"
 
 /**
+ * Load image
+ * Parameters:
+ *      path:   input path 
+ *      mem:    memory for decoding
+ * Return:
+ *           0  OK
+ *          -1  ERROR
+ */
+int loadImage (const char *path, Bitmap_t *mem);
+
+/**
+ * Save image
+ * Parameters:
+ *      path:   output path 
+ *      mem:    bitmap in memory
+ * Return:
+ *           0  OK
+ *          -1  ERROR
+ */
+int saveImage (const char *path, Bitmap_t *mem);
+
+
+/**
  * Read png file to memory
  * Return:
  *		 0 OK
@@ -147,7 +170,12 @@ int setEffectCmd(SdkEnv* env, const char* cmd);
 /*
  * Set input image path
  */
- int setImagePath (SdkEnv* env, const char* path);
+int setInputImagePath (SdkEnv* env, char* path);
+
+/*
+ * Set output image path
+ */
+int setOutputImagePath (SdkEnv* env, char* path);
 
 /**
  * Read file to memory. Do not forget to free memory

@@ -9,13 +9,15 @@
 #ifndef __COMM__H__
 #define __COMM__H__
 
+#include <android/log.h>
+#include <stdio.h>
+
 #define OK               0x0000 
 #define NULL_POINTER    -0x0001
 #define FILE_NOT_EXIST  -0x0002
 #define INVALID_PARAMS  -0x0003
 #define ERR_ALLOC_MEM   -0x0004
 
-#include <stdio.h>
 
 #define VALIDATE_NOT_NULL(X) 						\
     do { 											\
@@ -56,8 +58,5 @@
 #define LogD(...) ((void)printf( __VA_ARGS__))
 #define LogE(...) ((void)printf( __VA_ARGS__))
 #endif
-
-#define LOG_ENTRY Log("++++ %s ++++\n", __func__);
-#define LOG_EXIT Log("---- %s ----\n", __func__);
 
 #endif

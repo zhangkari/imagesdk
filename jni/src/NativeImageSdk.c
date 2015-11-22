@@ -10,6 +10,7 @@
 #include "NativeImageSdk.h"
 #include "imgsdk.h"
 #include "jniHelper.h"
+#include "utility.h"
 
 /*
  * Class:     org_imgsdk_core_NativeImageSdk
