@@ -13,20 +13,30 @@
 #include <EGL/egl.h>
 #include "comm.h"
 
+/*
+ * pixel color format
+ */
 typedef enum {
-	GRAY   = 1,
-	RGB16  = 2,
-	RGB24  = 3,
-	RGBA32 = 4
+	GRAY   = 1,			// gray scale
+	RGB16  = 2,			// rgb 5-6-6
+	RGB24  = 3,			// rgb 8-8-8
+	RGBA32 = 4			// rgba 8-8-8-8
 } PixForm_e;
 
+/**
+ * Used for storage image in memory. The available space
+ * is width * height * form
+ */
 typedef struct {
-	PixForm_e form;
-	int width;
-	int height;
-	char* base;
+	PixForm_e form;		// pixel color format
+	int width;			// image width
+	int height;			// image height
+	char* base;			// base address
 } Bitmap_t;
 
+/**
+ * The platform supported currently
+ */
 typedef enum PlatformType {
 	PLATFORM_OLD     = -1,		// old platform
 	PLATFORM_ANDROID =  0,		// Android platform
@@ -34,6 +44,9 @@ typedef enum PlatformType {
 	PLATFORM_NEW     =  2		// latest platform
 } PlatformType;
 
+/**
+ * Sdk context defined in imgsdk.c. It's not visible to user
+ */
 struct SdkEnv;
 typedef struct SdkEnv SdkEnv;
 
@@ -60,7 +73,7 @@ int loadImage (const char *path, Bitmap_t *mem);
  *           0  OK
  *          -1  ERROR
  */
-int saveImage (const char *path, Bitmap_t *mem);
+int saveImage (const char *path, const Bitmap_t *mem);
 
 
 /**
@@ -77,7 +90,7 @@ int read_png(const char *path, Bitmap_t *mem);
  *		 0 OK
  *		-1 error
  */
-int write_png(const char *path, Bitmap_t *mem);
+int write_png(const char *path, const Bitmap_t *mem);
 
 /**
  * Read jpeg file to memory
@@ -93,7 +106,7 @@ int read_jpeg(const char *path, Bitmap_t *mem);
  *		 0 OK
  *		-1 error
  */
-int write_jpeg(const char *path, Bitmap_t *mem);
+int write_jpeg(const char *path, const Bitmap_t *mem);
 
 
 /*
@@ -132,7 +145,7 @@ int sdkMain(SdkEnv *env);
 /**
  * Pass the platform related window to SdkEnv
  */
-int setEglNativeWindow(SdkEnv *env, EGLNativeWindowType window);
+int setEglNativeWindow(SdkEnv *env, const EGLNativeWindowType window);
 
 /**
  * Pass the platform related data to SdkEnv
@@ -140,12 +153,12 @@ int setEglNativeWindow(SdkEnv *env, EGLNativeWindowType window);
  *		env:  SdkEnv instance
  *		data: ANativeAssetManager (AssetManager in java) instance in Android
  */
-int setPlatformData(SdkEnv *env, void *data);
+int setPlatformData(SdkEnv *env, const void *data);
 
 /**
  * Swap buffers
  */
-void swapEglBuffers(SdkEnv *env);
+void swapEglBuffers(const SdkEnv *env);
 
 /**
  * Create sdk
@@ -170,12 +183,12 @@ int setEffectCmd(SdkEnv* env, const char* cmd);
 /*
  * Set input image path
  */
-int setInputImagePath (SdkEnv* env, char* path);
+int setInputImagePath (SdkEnv* env, const char* path);
 
 /*
  * Set output image path
  */
-int setOutputImagePath (SdkEnv* env, char* path);
+int setOutputImagePath (SdkEnv* env, const char* path);
 
 /**
  * Read file to memory. Do not forget to free memory

@@ -129,7 +129,8 @@ static int parseEyeEffect (const cJSON *json, eftcmd_t *eftcmd) {
  *		 0 OK
  *		-1 error
  */
-int parseEffectCmd(const char *usercmd, eftcmd_t *eftcmd) {
+int parseEffectCmd(const char *usercmd, eftcmd_t *eftcmd) 
+{
 	VALIDATE_NOT_NULL2 (usercmd, eftcmd);
 
 	cJSON *json = cJSON_Parse (usercmd);

@@ -1,10 +1,13 @@
-/***************************
+/***************************************************************
  * file name:   imgsdk.c
- * description:
+ * description: a simple toolkit for processing image use GPU
  * author:      kari.zhang
- * date:        2015-05-09
+ * create date: 2015-05-09
  *
- ***************************/
+ * modification 
+ *	1: Revivew code at 2015-11-23 21:12 by kari.zhang. 
+ *		add const qualifier for input parameters & add comments
+ ***************************************************************/
 
 #include <assert.h>
 #include <malloc.h>
@@ -22,16 +25,19 @@
 #include "png.h"
 #include "utility.h"
 
+/**
+ * Indicate whether  userData.param or userData.inputPath is active
+ */
 typedef enum ActiveType {
-    ACTIVE_NONE  = 0,
-    ACTIVE_PARAM = 1,
-    ACTIVE_PATH = 2,
+    ACTIVE_NONE  = 0,		// NO active
+    ACTIVE_PARAM = 1,		// param is active
+    ACTIVE_PATH = 2,		// input path is active
 } ActiveType;
 
 typedef enum ImageType {
 	IMAGE_UNKNOWN = 0,	// unknown image type
-	IMAGE_PNG,
-	IMAGE_JPG
+	IMAGE_PNG,			// png format
+	IMAGE_JPG			// jpg format
 } ImageType;
 
 /**
@@ -47,7 +53,7 @@ typedef struct {
     ActiveType		active;			// which is active ( param or pixel) 
     PixForm_e		pixfmt;			// pixel format
     PlatformType	platform;		// 0 Android, 1 iOS
-    void			*platformData;	// AssetManager in Android
+    const void		*platformData;	// AssetManager* in Android
     char            *vertSource;    // vertex shader source
     int             nVertSource;    // length of vertSource
     char            *fragSource;    // fragment shader source
@@ -149,6 +155,15 @@ int sdkMain(SdkEnv *env)
     onSdkCreate(env);
 }
 
+/*
+ * Console application entry
+ * Usage:
+ *		imgsdk input output
+ * Notice:
+ *	1. input & onput support *.jpg or *.png
+ *	2. support input and output image type are not same 
+ *	3. vert.shdr & frag.shdr must be prepared 
+ */
 int main(int argc, char **argv) {
     if (3 != argc) {
         Log("Usage:\n");
@@ -192,7 +207,8 @@ int main(int argc, char **argv) {
     if (NULL != env->userData.outputPath) {
         if (saveImage (env->userData.outputPath, img) < 0) {
             LogE ("Failed saveImage\n");
-        }else { 
+        }
+		else { 
             finish_t = getCurrentTime();
             LogD("Save %s cost %d ms\n", 
                     env->userData.outputPath,
@@ -204,6 +220,12 @@ int main(int argc, char **argv) {
     //onSdkDestroy(env);
 }
 
+/*
+ * Read png file and store in memory
+ * Return:
+ *		 0		  OK
+ *      negative  ERROR
+ */
 int read_png(const char *path, Bitmap_t *mem)
 {
     VALIDATE_NOT_NULL2(path, mem);
@@ -267,7 +289,13 @@ int read_png(const char *path, Bitmap_t *mem)
     return size;
 }
 
-int write_png(const char *path, Bitmap_t *mem)
+/**
+ * Write png to file
+ * Return:
+ *		0		 OK
+ *		negative ERROR
+ */
+int write_png(const char *path, const Bitmap_t *mem)
 {
     VALIDATE_NOT_NULL2(path, mem);
     FILE *fp;
@@ -334,6 +362,17 @@ int write_png(const char *path, Bitmap_t *mem)
     return 0;
 }
 
+/**
+ *	Read the text file to memory
+ *  Parameters:
+ *			path:	file path
+ *			mem:	[OUT] store file content
+ *	Return:
+ *			if OK return file's length
+ *			if ERROR return -1
+ *	Notice:
+ *		space of mem is 1 more byte than file length
+ */
 int readFile(const char* path, char** mem)
 {
     VALIDATE_NOT_NULL2(path, mem);
@@ -362,12 +401,22 @@ int readFile(const char* path, char** mem)
         return -1;
     }
 
-    return 0;
+    return size;
 }
 
+// Used for glsl log
 #define LOG_BUFF_SIZE 1024
-static char gLogBuff[LOG_BUFF_SIZE];
+static char sLogBuff[LOG_BUFF_SIZE];
 
+/**
+ * Create a glsh shader
+ * Parameters:
+ *		type:	Just support GL_VERTEX_SHADER and GL_FRAGMENT_SHADER
+ *		source:	shader source code
+ * Return:
+ *		if failed, return 0
+ *		if success, return the handle of shader
+ */
 static int loadShader(GLenum type, const char* source) {
     VALIDATE_NOT_NULL(source);
     GLuint shader = glCreateShader(type);
@@ -381,10 +430,10 @@ static int loadShader(GLenum type, const char* source) {
     int compiled, len;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
     if (!compiled) {
-        memset(gLogBuff, 0, LOG_BUFF_SIZE);
-        glGetShaderInfoLog(shader, LOG_BUFF_SIZE, &len, gLogBuff);
+        memset(sLogBuff, 0, LOG_BUFF_SIZE);
+        glGetShaderInfoLog(shader, LOG_BUFF_SIZE, &len, sLogBuff);
         if (len > 0) {
-            Log("compile error:%s\n", gLogBuff);
+            Log("compile error:%s\n", sLogBuff);
         } else {
             LogE("Failed get compile log\n");
         }
@@ -401,8 +450,7 @@ static int loadShader(GLenum type, const char* source) {
  *		0  OK
  *     -1 ERROR
  */
-static int createProgram(SdkEnv *env, const char* vertexSource, const char* fragSource)
-{
+static int createProgram(SdkEnv *env, const char* vertexSource, const char* fragSource) {
     VALIDATE_NOT_NULL3(env, vertexSource, fragSource);
 
     // Make sure to reset them
@@ -444,25 +492,26 @@ static int createProgram(SdkEnv *env, const char* vertexSource, const char* frag
         glGetProgramiv(program, GL_LINK_STATUS, &linkStatus);
         GLint len;
         if (!linkStatus) {
-            memset(gLogBuff, 0, LOG_BUFF_SIZE);
-            glGetProgramInfoLog(program, LOG_BUFF_SIZE, &len, gLogBuff); 
+            memset(sLogBuff, 0, LOG_BUFF_SIZE);
+            glGetProgramInfoLog(program, LOG_BUFF_SIZE, &len, sLogBuff); 
             if (len > 0) {
-                Log("link error log:%s\n", gLogBuff);
+                Log("link error log:%s\n", sLogBuff);
             } else {
                 LogE("Failed get link log\n");
             }
             break;
         }
 
-        glValidateProgram(program);
+        glValidateProgram (program);
         GLint success;
-        glGetProgramiv(program, GL_VALIDATE_STATUS, &success);
+        glGetProgramiv (program, GL_VALIDATE_STATUS, &success);
         if (!success) {
-            memset(gLogBuff, 0, LOG_BUFF_SIZE);
-            glGetProgramInfoLog(program, LOG_BUFF_SIZE, &len, gLogBuff);
+            memset (sLogBuff, 0, LOG_BUFF_SIZE);
+            glGetProgramInfoLog (program, LOG_BUFF_SIZE, &len, sLogBuff);
             if (len > 0) {
-                Log("program is invalidate:%s\n", gLogBuff); 
-            } else {
+                Log("program is invalidate:%s\n", sLogBuff); 
+            } 
+			else {
                 LogE("Failed get program status\n");
             }
             break;
@@ -506,14 +555,13 @@ void freeBitmap(Bitmap_t *mem)
  * Create a Pbuffer Surface for off-screen render
  */
 static int initDefaultEGL(SdkEnv *env) {
-
     VALIDATE_NOT_NULL(env);
-
-    env->egl.display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    if (EGL_NO_DISPLAY == env->egl.display || EGL_SUCCESS != eglGetError()) {
-        LogE("Failed eglGetDisplay\n");
-        return -1;
-    }
+	env->egl.display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+	if (EGL_NO_DISPLAY == env->egl.display ||
+			EGL_SUCCESS != eglGetError()) {
+		LogE("Failed eglGetDisplay\n");
+		return -1;
+	}
 
     EGLint major, minor;
     if (!eglInitialize(env->egl.display, &major, &minor) || EGL_SUCCESS != eglGetError()) {
@@ -741,6 +789,11 @@ static int attachShader(SdkEnv *env,
 
 /**
  * Create a blank SdkEnv instance
+ * Parameters:
+ *		platform: Just support Android & iOS
+ * Return:
+ *			if failed return NULL
+ *			otherwise return an valid pointer
  */
 SdkEnv* newBlankSdkEnv(int platform) 
 {
@@ -1046,8 +1099,16 @@ int initSdkEnv(SdkEnv *env)
 
 /*
  * Set input image path
+ * Parameters:
+ *		env:	sdk context
+ *		path:	input image path
+ * Return:
+ *		 0 OK
+ *		-1 ERROR
+ * Notice:
+ *		userData.active & inputPath & inputImageType  may changed
  */
-int setInputImagePath (SdkEnv* env, char* path)
+int setInputImagePath (SdkEnv* env, const char* path)
 {
     VALIDATE_NOT_NULL2 (env, path);
     if (NULL != env->userData.inputPath) {
@@ -1077,7 +1138,7 @@ int setInputImagePath (SdkEnv* env, char* path)
  *               0  OK
  *              -1  ERROR
  */
-int setOutputImagePath (SdkEnv* env, char* path)
+int setOutputImagePath (SdkEnv* env, const char* path)
 {
     VALIDATE_NOT_NULL2 (env, path);
     if (NULL != env->userData.outputPath) {
@@ -1090,6 +1151,12 @@ int setOutputImagePath (SdkEnv* env, char* path)
 
 /*
  * Set image effect command
+ * Parameters:
+ *		env:	sdk context
+ *		cmd:	user command
+ * Return:
+ *		-1 ERROR
+ *		 0 OK
  */
 int setEffectCmd(SdkEnv* env, const char* cmd)
 {
@@ -1188,6 +1255,9 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
     return 0;
 }
 
+/*
+ * Render with OpenGLES shader
+ */
 static void onDraw(SdkEnv *env) {
     if (NULL == env) {
         LogE ("NULL pointer exception in onDraw()\n");
@@ -1268,7 +1338,14 @@ static void onDestroy(SdkEnv *env) {
 
 }
 
-int setEglNativeWindow(SdkEnv *env, EGLNativeWindowType window)
+/**
+ * Assign the native window to sdk context 
+ * Notice:
+ *		Never check if window is really a native window
+ *		The user ensure window is valid.
+ */
+
+int setEglNativeWindow(SdkEnv *env, const EGLNativeWindowType window)
 {
     VALIDATE_NOT_NULL2(env, window);
     env->egl.window = window;
@@ -1279,7 +1356,7 @@ int setEglNativeWindow(SdkEnv *env, EGLNativeWindowType window)
  * Please call me in on-screen render,
  * And ignore me in off-screen render.
  */
-void swapEglBuffers(SdkEnv *env)
+void swapEglBuffers(const SdkEnv *env)
 {
     if (NULL != env) {
 
@@ -1294,12 +1371,23 @@ void swapEglBuffers(SdkEnv *env)
     }
 }
 
-int setPlatformData(SdkEnv *env, void *data)
+/**
+ * Assign an variable which type is AssetManager * to sdk context in 
+ * Android platform. It does not define in other platforms
+ * Notice:
+ *		Never check if data is really valid.
+ *		The user ensure data is valid.
+ */
+int setPlatformData(SdkEnv *env, const void *data)
 {
     VALIDATE_NOT_NULL2(env, data);
     env->userData.platformData = data;
+	return 0;
 }
 
+/*
+ * Just export env->onCreate() to user
+ */
 void onSdkCreate(SdkEnv *env)
 {
     if (NULL != env && NULL != env->onCreate) {
@@ -1307,6 +1395,9 @@ void onSdkCreate(SdkEnv *env)
     }
 }
 
+/*
+ * Just export env->onDraw() to user
+ */
 void onSdkDraw(SdkEnv *env)
 {
     if (NULL != env && NULL != env->onDraw) {
@@ -1314,6 +1405,9 @@ void onSdkDraw(SdkEnv *env)
     }
 }
 
+/*
+ * Just export env->onDestroy() to user
+ */
 void onSdkDestroy(SdkEnv *env)
 {
     if (NULL != env && NULL != env->onDestroy) {
@@ -1385,7 +1479,7 @@ int read_jpeg(const char *path, Bitmap_t *mem)
  *		 0 OK
  *		-1 error
  */
-int write_jpeg(const char *path, Bitmap_t *mem)
+int write_jpeg(const char *path, const Bitmap_t *mem)
 {
     VALIDATE_NOT_NULL3 (path, mem, mem->base);
 
@@ -1442,7 +1536,8 @@ int write_jpeg(const char *path, Bitmap_t *mem)
  *           0  OK
  *          -1  ERROR
  */
-int loadImage (const char *path, Bitmap_t *mem) {
+int loadImage (const char *path, Bitmap_t *mem) 
+{
     VALIDATE_NOT_NULL2 (path, mem);
     const char const *postfix = getFilePostfix (path);
     if (NULL == postfix) {
@@ -1471,7 +1566,8 @@ int loadImage (const char *path, Bitmap_t *mem) {
  *           0  OK
  *          -1  ERROR
  */
-int saveImage (const char *path, Bitmap_t *mem) {
+int saveImage (const char *path, const Bitmap_t *mem) 
+{
     VALIDATE_NOT_NULL2 (path, mem);
     const char const *postfix = getFilePostfix (path);
     if (NULL == postfix) {

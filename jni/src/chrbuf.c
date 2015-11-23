@@ -20,7 +20,8 @@
  * Return:
  *		NULL if ERROR		
  */
-chrbuf_t* newChrbuf (int cap) {
+chrbuf_t* newChrbuf (int cap) 
+{
 	chrbuf_t *buf = NULL;
 	if (cap > 0) {
 		buf = (chrbuf_t *)calloc (sizeof(chrbuf_t), 1);
@@ -41,7 +42,8 @@ chrbuf_t* newChrbuf (int cap) {
 /*
  * Release the char buffer
  */
-void freeChrbuf (chrbuf_t *buf) {
+void freeChrbuf (chrbuf_t *buf) 
+{
 	if (NULL != buf) {
 		if (NULL != buf->base) {
 			free (buf->base);
@@ -58,7 +60,8 @@ void freeChrbuf (chrbuf_t *buf) {
  *		 0 OK
  *		-1 ERROR
  */
-int ensureChrbufCap (chrbuf_t *buf, int cap) {
+int ensureChrbufCap (chrbuf_t *buf, int cap) 
+{
 	VALIDATE_NOT_NULL2 (buf, buf->base);
 	if (cap <= 0) {
 		return -1;
@@ -81,7 +84,8 @@ int ensureChrbufCap (chrbuf_t *buf, int cap) {
  *		0  OK
  *     -1  ERROR
  */
-int appendChrbuf (chrbuf_t *buf, const char *str) {
+int appendChrbuf (chrbuf_t *buf, const char *str) 
+{
 	VALIDATE_NOT_NULL3 (buf, buf->base, str);
 	int free = buf->capability - buf->used;
 	int len = strlen (str);
@@ -99,7 +103,8 @@ int appendChrbuf (chrbuf_t *buf, const char *str) {
  *		0  OK
  *     -1  ERROR
  */
-int clearChrbuf (chrbuf_t *buf) {
+int clearChrbuf (chrbuf_t *buf) 
+{
 	VALIDATE_NOT_NULL (buf);
 	buf->used = 0;
 	return 0;
