@@ -28,6 +28,12 @@ typedef enum ActiveType {
     ACTIVE_PATH = 2,
 } ActiveType;
 
+typedef enum ImageType {
+	IMAGE_UNKNOWN = 0,	// unknown image type
+	IMAGE_PNG,
+	IMAGE_JPG
+} ImageType;
+
 /**
  * User's image information
  */
@@ -36,6 +42,7 @@ typedef struct {
     GLuint			height;			// user's image height
     GLchar			*param;			// user's parameter
     GLchar			*inputPath;		// input image path
+	ImageType		inputImageType;	// input image type
     GLchar			*outputPath;	// output image path
     ActiveType		active;			// which is active ( param or pixel) 
     PixForm_e		pixfmt;			// pixel format
@@ -169,7 +176,11 @@ int main(int argc, char **argv) {
     // copy pixels from GPU memory to CPU memory
     int x = 0;
     int y = 0;
-    glReadPixels(x, y, img->width, img->height, GL_RGBA, GL_UNSIGNED_BYTE, img->base);
+	GLint fmt = GL_RGBA;
+	if (IMAGE_JPG == env->userData.inputImageType) {
+		fmt = GL_RGB;
+	}
+    glReadPixels(x, y, img->width, img->height, fmt, GL_UNSIGNED_BYTE, img->base);
     int errCode = glGetError ();
     if (GL_NO_ERROR != errCode ) { 
         Log ("Failed read pixles, error code:0x%04x\n", errCode);
@@ -1044,6 +1055,16 @@ int setInputImagePath (SdkEnv* env, char* path)
     }
     env->userData.inputPath = strdup (path);
     env->userData.active = ACTIVE_PATH;
+	const char const *postfix = getFilePostfix (path);
+	if (strcasecmp (postfix, "jpg") == 0) {
+		env->userData.inputImageType = IMAGE_JPG;
+	}
+	else if (strcasecmp (postfix, "png") == 0) {
+		env->userData.inputImageType = IMAGE_PNG;
+	}
+	else {
+		env->userData.inputImageType = IMAGE_UNKNOWN;
+	}
     return 0;
 }
 
@@ -1145,9 +1166,13 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
         env->userData.param = (void *) img;
         env->userData.active = ACTIVE_PARAM;
 
+		GLint fmt = GL_RGBA;
+		if (IMAGE_JPG == env->userData.inputImageType) {
+			fmt = GL_RGB;
+		}
         int level = 0;
 #define BORDER 0
-        glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, img->width, img->height, BORDER, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+        glTexImage2D(GL_TEXTURE_2D, level, fmt, img->width, img->height, BORDER, fmt, GL_UNSIGNED_BYTE, NULL);
     }
     // reUse image in memory
     else if (ACTIVE_PARAM == env->userData.active) {
@@ -1179,8 +1204,13 @@ static void onDraw(SdkEnv *env) {
     float factor = (float) env->egl.width / (float)env->egl.height;
     while ( i < POINT_COUNT * 3 ) {
         float angle = start_angle + (i / 3) * delta_angle;
-        vertex[i] = cos ( M_PI * angle / 180.0f);
-        vertex[i+1] = sin (M_PI * angle / 180.0f) * factor;
+		if (factor <= 1.0f) {
+			vertex[i] = cos ( M_PI * angle / 180.0f);
+			vertex[i+1] = sin (M_PI * angle / 180.0f) * factor;
+		} else {
+			vertex[i+1] = sin (M_PI * angle / 180.0f);
+			vertex[i] = cos ( M_PI * angle / 180.0f) / factor;
+		}
         vertex[i+2] = 0;
         i += 3;
     }
