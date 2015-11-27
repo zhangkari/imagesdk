@@ -34,6 +34,22 @@ JNIEXPORT void JNICALL Java_org_imgsdk_core_NativeImageSdk_freeSDK
 
 /*
  * Class:     org_imgsdk_core_NativeImageSdk
+ * Method:    setInputPath
+ * Signature: (JLjava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_org_imgsdk_core_NativeImageSdk_setInputPath
+  (JNIEnv *, jobject, jlong, jstring);
+
+/*
+ * Class:     org_imgsdk_core_NativeImageSdk
+ * Method:    setOutputPath
+ * Signature: (JLjava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_org_imgsdk_core_NativeImageSdk_setOutputPath
+  (JNIEnv *, jobject, jlong, jstring);
+
+/*
+ * Class:     org_imgsdk_core_NativeImageSdk
  * Method:    setEffectCmd
  * Signature: (JLjava/lang/String;)V
  */
@@ -46,7 +62,7 @@ JNIEXPORT void JNICALL Java_org_imgsdk_core_NativeImageSdk_setEffectCmd
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL Java_org_imgsdk_core_NativeImageSdk_executeCmd
-  (JNIEnv *, jobject, jlong);
+  (JNIEnv *, jobject, jlong, jobject jlistener, jobject jparam);
 
 #ifdef __cplusplus
 }

@@ -152,41 +152,61 @@ int parseEffectCmd(const char *usercmd, eftcmd_t *eftcmd)
 		return -1;
 	}
 
+	int retCode = -1;
 	const char *eft = jeft->valuestring;
 	if (strcmp (eft, "Normal") == 0) {
         if (parseNormalEffect (json, eftcmd) < 0) {
             LogE ("Failed parseNormalEffect\n");
         }
+		else {
+			retCode = 0;
+		}
 	}
     else if (strcmp(eft, "Rotate") == 0) {
         if (parseRotateEffect (json, eftcmd) < 0) {
             LogE ("Failed parseRotateEffect\n");
         }
+		else {
+			retCode = 0;
+		}
 	}
     else if (strcmp(eft, "Scale") == 0) {
         if (parseScaleEffect (json, eftcmd) < 0) {
             LogE ("Failed parseScaleEffect\n");
         }
+		else {
+			retCode = 0;
+		}
 	}
 	else if (strcmp (eft, "Clip") == 0) {
         if (parseClipEffect (json, eftcmd) < 0) {
             LogE ("Failed parseClipEffect\n");
         }
+		else {
+			retCode = 0;
+		}
 	}
     else if (strcmp(eft, "Skin") == 0) {
         if (parseSkinEffect (json, eftcmd) < 0) {
             LogE ("Failed parseSkinEffect\n");
         }
+		else {
+			retCode = 0;
+		}
 	}
     else if (strcmp(eft, "Eye") == 0) {
         if (parseEyeEffect (json, eftcmd) < 0) {
             LogE ("Failed parseEyeEffect\n");
         }
+		else {
+			retCode = 0;
+		}
 	}
     else {
         LogE ("Invalid effect command\n");
     }
 
 	cJSON_Delete (json);
-	return -1;
+	
+	return retCode;
 }

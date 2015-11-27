@@ -49,14 +49,17 @@ jstring string2jstring(JNIEnv *env, const char *cmd)
 	}
 
 	jclass clsStr = (jclass) (*env)->FindClass(env, "java/lang/String");
-	jmethodID mid = (jmethodID) (*env)->GetMethodID(env, clsStr, "<init>", "([BLjava/lang/String;)V");
+	jmethodID mid = (jmethodID) (*env)->GetMethodID(env,
+			clsStr, 
+			"<init>",
+			"([BLjava/lang/String;)V");
 	jstring strEncode = (jstring) (*env)->NewStringUTF(env, "UTF-8");
 
 	int len = strlen(cmd);
 	jbyteArray byteArr = (jbyteArray) (*env)->NewByteArray(env, len);
 	(*env)->SetByteArrayRegion (env, byteArr, 0, len, (jbyte *)cmd);
 
-	(*env)->DeleteLocalRef (env, strEncode);
+	jstring jretStr =  (jstring) (*env)->NewObject(env, clsStr, mid, byteArr, strEncode);
 
-	return (jstring) (*env)->NewObject(clsStr, mid, byteArr, strEncode);
+	return (*env)->NewGlobalRef(env, jretStr);
 }

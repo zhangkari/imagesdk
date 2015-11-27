@@ -190,6 +190,15 @@ int setInputImagePath (SdkEnv* env, const char* path);
  */
 int setOutputImagePath (SdkEnv* env, const char* path);
 
+/*
+ * Get output image path
+ * Parameters:
+ *              env:    sdk context
+ *  Return:
+ *              NULL	ERROR
+ */
+char* getOutputImagePath (SdkEnv* env);
+
 /**
  * Read file to memory. Do not forget to free memory
  */

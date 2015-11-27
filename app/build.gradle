@@ -20,10 +20,29 @@ android {
 
     buildTypes {
         release {
+            buildConfigField("boolean", "LOG_DEBUG", "false")
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-project.txt'), 'proguard-rules.pro'
+        }
+
+        debug {
+            buildConfigField("boolean", "LOG_DEBUG", "true")
+            minifyEnabled false
         }
     }
+
+    signingConfigs {
+        releaseConfig {
+            keyAlias 'stone'
+            keyPassword 'mypwd'
+            storeFile file('../imgsdk.keystore')
+            storePassword 'mypwd'
+        }
+        debugConfig {
+
+        }
+    }
+
 }
 
 dependencies {

@@ -4,6 +4,7 @@
  *
  *******************************/
 
+#include <pthread.h>
 #include <stdint.h>
 #include <android/asset_manager_jni.h>
 #include <android/native_window_jni.h>
@@ -25,6 +26,8 @@ jlong JNICALL Java_org_imgsdk_core_NativeImageSdk_initSDK
 		LogE("NULL pointer exception:context = NULL\n");
 		return 0;
 	}
+
+	Log("initSDK pthread id:%lx\n", pthread_self() );
 
 	jclass cls = (*env)->GetObjectClass(env, jcontext);
 	jmethodID mid = (*env)->GetMethodID(env, cls, 
@@ -73,6 +76,8 @@ jlong JNICALL Java_org_imgsdk_core_NativeImageSdk_initRenderSDK
 		LogE("NULL pointer exception:context = NULL\n");
 		return 0;
 	}
+
+	Log("initRenderSDK pthread id:%lx\n", pthread_self() );
 
 	jclass cls = (*env)->GetObjectClass(env, jcontext);
 	jmethodID mid = (*env)->GetMethodID(env, cls, 
@@ -134,10 +139,77 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_freeSDK
   (JNIEnv *env, jobject thiz, jlong ptr)
 {
 	LOG_ENTRY;
+
+	Log("freeSDK pthread id:%lx\n", pthread_self() );
+
     SdkEnv *sdk = (SdkEnv *)((intptr_t) ptr);
     if (NULL != sdk) {
         freeSdkEnv(sdk);
     }
+	LOG_EXIT;
+}
+
+/*
+ * Class:     org_imgsdk_core_NativeImageSdk
+ * Method:    setInputPath
+ * Signature: (JLjava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_org_imgsdk_core_NativeImageSdk_setInputPath
+  (JNIEnv *env, jobject thiz, jlong ptr, jstring jpath)
+{
+	LOG_ENTRY;
+	SdkEnv* sdk = (SdkEnv *)((intptr_t)ptr);
+	if (NULL == sdk) {
+		LogE("NULL pointer exception\n");
+		return;
+	}
+
+	if (NULL == jpath) {
+		LogE("NULL pointer exception\n");
+		return;
+	}
+
+	char *path = jstring2string(env, jpath);
+    if (NULL == path) {
+        LogE("input path is NULL\n");
+        return;
+    }
+
+	Log("input path:%s\n", path);
+	setInputImagePath(sdk, path);
+
+	LOG_EXIT;
+}
+
+/*
+ * Class:     org_imgsdk_core_NativeImageSdk
+ * Method:    setOutputPath
+ * Signature: (JLjava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_org_imgsdk_core_NativeImageSdk_setOutputPath
+  (JNIEnv *env, jobject thiz, jlong ptr, jstring jpath)
+{
+	LOG_ENTRY;
+	SdkEnv* sdk = (SdkEnv *)((intptr_t)ptr);
+	if (NULL == sdk) {
+		LogE("NULL pointer exception\n");
+		return;
+	}
+
+	if (NULL == jpath) {
+		LogE("NULL pointer exception\n");
+		return;
+	}
+
+	char *path = jstring2string(env, jpath);
+    if (NULL == path) {
+        LogE("output path is NULL\n");
+        return;
+    }
+
+    Log("output path:%s\n", path);
+	setOutputImagePath(sdk, path);
+
 	LOG_EXIT;
 }
 
@@ -161,6 +233,8 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_setEffectCmd
 		return;
 	}
 
+	Log("setEffectCmd pthread id:%lx\n", pthread_self() );
+
 	char *cmd = jstring2string(env, jcommand);
     if (NULL == cmd) {
         LogE("Effect cmd is NULL\n");
@@ -168,10 +242,7 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_setEffectCmd
     }
 
     Log("EffectCmd = %s\n", cmd);
-
 	setEffectCmd (sdk, cmd);
-
-	onSdkDraw (sdk);
 
 	LOG_EXIT;
 }
@@ -182,7 +253,7 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_setEffectCmd
  * Signature: (J)V
  */
 void JNICALL Java_org_imgsdk_core_NativeImageSdk_executeCmd
-  (JNIEnv *env, jobject thiz, jlong ptr)
+  (JNIEnv *env, jobject thiz, jlong ptr, jobject jlistener, jobject param)
 {
 	LOG_ENTRY;
 	SdkEnv *sdk = (SdkEnv *) ((intptr_t) ptr);
@@ -191,8 +262,35 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_executeCmd
 		return;
 	}
 
-//    onSdkDraw (sdk);
-	swapEglBuffers(sdk);
+	Log("executeCmd pthread id:%lx\n", pthread_self() );
+
+	//swapEglBuffers(sdk);
+    onSdkDraw (sdk);
+
+	if (NULL != jlistener) {
+		jclass cls = (jclass)(*env)->GetObjectClass(env, jlistener);
+		if (NULL == cls) {
+			LogE("Not found OnEditCompleteListener\n");
+			return;
+		}
+
+		jmethodID mid = (jmethodID)(*env)->GetMethodID(env, cls, "onSuccess", "(Ljava/lang/String;Ljava/lang/Object;)V");
+		if (mid == NULL) {
+			LogE("Not found onSuccess(String, Object\n");
+			return;
+		}
+
+		char *path = getOutputImagePath(sdk);
+		Log("output path:%s\n", path);
+		jstring jpath = NULL;
+		if (NULL != path) {
+			jpath = string2jstring(env, path);
+		}
+		(*env)->CallVoidMethod(env, jlistener, mid, jpath, param);
+		if (NULL != jpath) {
+			(*env)->DeleteGlobalRef(env, jpath);
+		}
+	}
 
 	LOG_EXIT;
 }

@@ -14,6 +14,7 @@
 #include <math.h>
 #include <string.h>
 #include <sys/time.h>
+#include <pthread.h>
 #include <android/asset_manager.h>
 #include <android_native_app_glue.h>
 #include <GLES2/gl2.h>
@@ -24,6 +25,9 @@
 #include "jpeglib.h"
 #include "png.h"
 #include "utility.h"
+
+// user cmd default capability
+#define USER_CMD_CAPABILITY 1024
 
 /**
  * Indicate whether  userData.param or userData.inputPath is active
@@ -837,8 +841,7 @@ SdkEnv* newDefaultSdkEnv()
         return NULL;
     }
 
-#define CAPABILITY 1024
-    chrbuf_t *userCmd = newChrbuf (CAPABILITY);
+    chrbuf_t *userCmd = newChrbuf (USER_CMD_CAPABILITY);
     if (NULL == userCmd) {
         LogE ("Failed newChrbuf for userCmd\n");
         freeSdkEnv (env);
@@ -1018,6 +1021,8 @@ int initSdkEnv(SdkEnv *env)
 {
     VALIDATE_NOT_NULL(env);
 
+	Log("initSdkEnv pthead id = %lx\n", pthread_self());
+
     uint32_t t_begin, t_finish;
 
     if (env->type == SDK_STATUS_OK) {
@@ -1029,6 +1034,14 @@ int initSdkEnv(SdkEnv *env)
         LogE("Please call setPlatformData first!\n");
         return -1;
     }
+
+	chrbuf_t *userCmd = newChrbuf (USER_CMD_CAPABILITY);
+    if (NULL == userCmd) {
+        LogE ("Failed newChrbuf for userCmd\n");
+        freeSdkEnv (env);
+        return -1;
+    }
+    env->userCmd = userCmd;
 
     if (NULL != env->egl.window) {	// On-screen render
         t_begin = getCurrentTime();
@@ -1111,6 +1124,12 @@ int initSdkEnv(SdkEnv *env)
 int setInputImagePath (SdkEnv* env, const char* path)
 {
     VALIDATE_NOT_NULL2 (env, path);
+	if (env->userData.inputPath != NULL &&
+			strcmp(env->userData.inputPath, path) == 0) {
+		Log ("Same input image path\n");
+		return 0;
+	}
+
     if (NULL != env->userData.inputPath) {
         free (env->userData.inputPath);
     }
@@ -1148,6 +1167,19 @@ int setOutputImagePath (SdkEnv* env, const char* path)
     return 0;
 }
 
+/*
+ * Get output image path
+ * Parameters:
+ *              env:    sdk context
+ *  Return:
+ *              NULL	ERROR
+ */
+char* getOutputImagePath (SdkEnv* env)
+{
+	VALIDATE_NOT_NULL(env);
+	return env->userData.outputPath;
+}
+
 
 /*
  * Set image effect command
@@ -1163,9 +1195,11 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
     LOG_ENTRY;
     VALIDATE_NOT_NULL2(env, cmd);
 
+	Log("pthead id = %lx\n", pthread_self());
+
     env->effectCmd.invalid = 1;
     if (parseEffectCmd (cmd, &env->effectCmd) < 0) {
-        LogE ("Failed parseEffectCmd \n");
+        LogE ("Failed parseEffectCmd FIXME! \n");
     }
 
     if (NULL == env->userData.inputPath &&
@@ -1176,13 +1210,17 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
 
     Log ("effect cmd:%s\n", cmd);
 
-    if (strcmp(cmd, env->userCmd->base) == 0) {
-        Log ("The same effect cmd\n");
-        return 0;
-    }
+	if (NULL != env->userCmd &&
+			env->userCmd->base != NULL &&
+			strcmp(cmd, env->userCmd->base) == 0) {
+		Log ("The same effect cmd\n");
+	}
 
     // input image by specified path
     if (ACTIVE_PATH == env->userData.active) {
+
+		Log ("ACTIVE PATH\n"); 
+
         if (NULL == env->userData.inputPath) {
             LogE ("Please setImagePath first\n");
             return -1;
@@ -1203,7 +1241,8 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
         Log("Load %s cost %d ms\n", env->userData.inputPath, end_t - begin_t);
     
 
-#ifdef _DEBUG_
+//#ifdef _DEBUG_
+#if 0
         ///////////////////////////////////////
         // save iamge for test
         // == begin test
@@ -1233,6 +1272,7 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
         env->userData.param = (void *) img;
         env->userData.active = ACTIVE_PARAM;
 
+#if 0
 		GLint fmt = GL_RGBA;
 		if (IMAGE_JPG == env->userData.inputImageType) {
 			fmt = GL_RGB;
@@ -1240,13 +1280,17 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
         int level = 0;
 #define BORDER 0
         glTexImage2D(GL_TEXTURE_2D, level, fmt, img->width, img->height, BORDER, fmt, GL_UNSIGNED_BYTE, NULL);
+#endif
     }
     // reUse image in memory
     else if (ACTIVE_PARAM == env->userData.active) {
+
+#if 0
         if (NULL == env->userData.param) {
             LogE ("No reuse image\n");
             return -1;
         }
+#endif
 
         Log ("Reuse image\n");
     }
@@ -1264,6 +1308,8 @@ static void onDraw(SdkEnv *env) {
         return;
     }
     Log("onDraw()\n");
+
+	Log("pthead id = %lx\n", pthread_self());
 
 #define POINT_COUNT 5
     // start vertex
