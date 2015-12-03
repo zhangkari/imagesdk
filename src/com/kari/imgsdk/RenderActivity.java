@@ -35,7 +35,7 @@ public class RenderActivity extends Activity {
             @Override
             public void onClick(View view) {
                 if (!hasSetInputPath) {
-                    mSurfaceView.getRenderer().setInputPath("/sdcard/input.jpg");
+                    mSurfaceView.getRenderer().setInputPath("/sdcard/icon.png");
                     mSurfaceView.getRenderer().setOutputPath("/sdcard/output.jpg");
                     hasSetInputPath = true;
                 }

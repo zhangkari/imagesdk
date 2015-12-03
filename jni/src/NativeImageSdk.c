@@ -264,7 +264,7 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_executeCmd
 
 	Log("executeCmd pthread id:%lx\n", pthread_self() );
 
-	//swapEglBuffers(sdk);
+	swapEglBuffers(sdk);
     onSdkDraw (sdk);
 
 	if (NULL != jlistener) {

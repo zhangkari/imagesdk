@@ -1,12 +1,11 @@
 attribute vec3 aPosition;
-//attribute vec2 aTexCoord;
-//attribute vec4 aColor;
-//varying vec4 vColor;
-//varying vec2 vTexCoord;
+attribute vec2 aTexCoord;
+varying vec2 vTexCoord;
+attribute vec3 aColor;
+varying vec4 vColor;
 void main()
 {
 	gl_Position = vec4(aPosition, 1.0);
-//	vColor = aColor;
-//	vColor = vec4(1.0, 0.0, 0.0, 1.0);
-//  vTexCoord = aTexCoord;
+    vColor = vec4(aColor, 1.0);
+    vTexCoord = aTexCoord;
 }

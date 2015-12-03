@@ -72,12 +72,13 @@ typedef struct CommHandle {
     GLuint program;				// program handler
     GLuint vertShader;			// vertex shader handle
     GLuint fragShader;			// fragment shader handle
-    GLint position;				// attribute vec3 aPosition
-    GLint color;				// uniform vec4 uColor
-    GLuint textureId;           // texture handle
-    GLuint sampler2dId;         // sampler handler
-    GLuint texCoordId;          // texture coordinate
-    GLuint fboId;				// framebuffer id
+    GLint positionIdx;		    // attribute vec3 aPosition
+    GLuint texture1Idx;         // texture handle
+    GLuint texture2Idx;         // texture handle
+    GLuint sampler2dIdx;        // sampler handler
+    GLuint texCoordIdx;         // texture coordinate
+    GLuint colorIdx;            // attribute color
+    GLuint fboIdx;				// framebuffer id
 } CommHandle;
 
 /**
@@ -146,6 +147,7 @@ typedef struct SdkEnv {
 
 static void onCreate(SdkEnv *env);
 static void onDraw(SdkEnv *env);
+static void onRender(SdkEnv *env);
 static void onDestroy(SdkEnv *env);
 
 int sdkMain(SdkEnv *env)
@@ -153,7 +155,8 @@ int sdkMain(SdkEnv *env)
     VALIDATE_NOT_NULL(env);
 
     env->onCreate  = onCreate;
-    env->onDraw	   = onDraw;
+    //env->onDraw	   = onDraw;
+    env->onDraw	   = onRender;
     env->onDestroy = onDestroy;
 
     onSdkCreate(env);
@@ -183,13 +186,13 @@ int main(int argc, char **argv) {
     setOutputImagePath (env, argv[2]);
 
     sdkMain (env);
-    setEffectCmd (env, "{effect:\"Normal\"}");
+    setEffectCmd (env, "{\"effect\":\"Normal\"}");
     onSdkDraw (env);
 
     Bitmap_t *img = (Bitmap_t *) env->userData.param;
     uint32_t begin_t = getCurrentTime();
 
-    glBindTexture(GL_TEXTURE, env->handle.textureId);
+    glBindTexture(GL_TEXTURE, env->handle.texture2Idx);
     memset (img->base, 0, img->width * img->height * img->form);
 
     // copy pixels from GPU memory to CPU memory
@@ -714,8 +717,8 @@ int freeSdkEnv(SdkEnv *env)
     releaseShader(env);
 
     if (OFF_SCREEN_RENDER == env->type) {
-        glDeleteFramebuffers (1, &env->handle.fboId);
-        glDeleteTextures (1, &env->handle.textureId);
+        glDeleteFramebuffers (1, &env->handle.fboIdx);
+        glDeleteTextures (1, &env->handle.texture2Idx);
     }
 
     free (env);
@@ -733,25 +736,26 @@ static int findShaderHandles(SdkEnv *env) {
         return -1;
     }
 
-    env->handle.position = glGetAttribLocation(env->handle.program, "aPosition");
-    if (env->handle.position < 0) {
+    env->handle.positionIdx = glGetAttribLocation(env->handle.program, "aPosition");
+    if (env->handle.positionIdx < 0) {
         LogE("Failed get aPosition location\n");
     }
 
-    env->handle.color = glGetUniformLocation(env->handle.program, "uColor");
-    if (env->handle.color < 0) {
-        LogE("Failed get uColor location\n");
-    }
-
-    env->handle.sampler2dId = glGetUniformLocation(env->handle.program, "uSampler2D");
-    if (env->handle.sampler2dId < 0) {
+    env->handle.sampler2dIdx = glGetUniformLocation(env->handle.program, "uSampler2D");
+    if (env->handle.sampler2dIdx < 0) {
         LogE("Failed get uSampler2D location\n");
     }
 
-    env->handle.texCoordId = glGetAttribLocation(env->handle.program, "aTexCoord");
-    if (env->handle.texCoordId < 0) {
+    env->handle.texCoordIdx = glGetAttribLocation(env->handle.program, "aTexCoord");
+    if (env->handle.texCoordIdx < 0) {
         LogE("Failed get aTexCoord location\n");
     }
+
+    env->handle.colorIdx = glGetAttribLocation(env->handle.program, "aColor");
+    if (env->handle.colorIdx < 0) {
+        LogE("Failed get aColor location\n");
+    }
+
 
     return 0;
 }
@@ -817,9 +821,11 @@ SdkEnv* newBlankSdkEnv(int platform)
 static int initGlBuffers (SdkEnv *env) {
     VALIDATE_NOT_NULL (env);
 
-    glGenFramebuffers (1, &env->handle.fboId);
-    glGenTextures(1, &env->handle.textureId);
-    glBindTexture (GL_TEXTURE_2D, env->handle.textureId);
+    glGenFramebuffers (1, &env->handle.fboIdx);
+    glGenTextures(1, &env->handle.texture1Idx);
+    glGenTextures(1, &env->handle.texture2Idx);
+
+    glBindTexture (GL_TEXTURE_2D, env->handle.texture1Idx);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
@@ -896,6 +902,8 @@ SdkEnv* newDefaultSdkEnv()
  */
 int initEGL(SdkEnv *env)
 {
+    LOG_ENTRY;
+
     VALIDATE_NOT_NULL(env);
     VALIDATE_NOT_NULL(env->egl.window);
 
@@ -933,8 +941,8 @@ int initEGL(SdkEnv *env)
     EGLint surface_attrs[] = {
         EGL_NONE
     };
-    env->egl.surface = eglCreateWindowSurface(env->egl.display, configs[0], env->egl.window, surface_attrs);
 
+    env->egl.surface = eglCreateWindowSurface(env->egl.display, configs[0], env->egl.window, surface_attrs);
     if (EGL_NO_SURFACE == env->egl.surface) {
         LogE("Failed create Window Surface, error code:%x\n", eglGetError());
         return -1;
@@ -949,6 +957,7 @@ int initEGL(SdkEnv *env)
         EGL_CONTEXT_CLIENT_VERSION, 2,
         EGL_NONE
     };
+
     env->egl.context = eglCreateContext(env->egl.display, configs[0], EGL_NO_CONTEXT, context_attrs);
     if (EGL_NO_CONTEXT == env->egl.context) {
         LogE("Failed create context, error code:%x\n", eglGetError() );
@@ -965,6 +974,8 @@ int initEGL(SdkEnv *env)
     Log("EGL Window Surface %d x %d\n", env->egl.width, env->egl.height);
 
     env->type = ON_SCREEN_RENDER;
+
+    LOG_EXIT;
 
     return 0;
 }
@@ -1272,15 +1283,21 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
         env->userData.param = (void *) img;
         env->userData.active = ACTIVE_PARAM;
 
-#if 0
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glBindTexture(GL_TEXTURE_2D, env->handle.texture1Idx);
 		GLint fmt = GL_RGBA;
 		if (IMAGE_JPG == env->userData.inputImageType) {
 			fmt = GL_RGB;
 		}
+
         int level = 0;
 #define BORDER 0
+        glTexImage2D(GL_TEXTURE_2D, level, fmt, img->width, img->height, BORDER, fmt, GL_UNSIGNED_BYTE, img->base);
+
+        glBindTexture(GL_TEXTURE_2D, env->handle.texture2Idx);
         glTexImage2D(GL_TEXTURE_2D, level, fmt, img->width, img->height, BORDER, fmt, GL_UNSIGNED_BYTE, NULL);
-#endif
+
+
     }
     // reUse image in memory
     else if (ACTIVE_PARAM == env->userData.active) {
@@ -1297,6 +1314,75 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
 
     LOG_EXIT;
     return 0;
+}
+
+static void onRender(SdkEnv *env) {
+    glViewport(0, 0, env->egl.width, env->egl.height);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glClearColor (0.0f, 0.0f, 0.0f, 1.0f);
+    glUseProgram(env->handle.program);
+
+    if ( OFF_SCREEN_RENDER == env->type ) {
+        glBindFramebuffer (GL_FRAMEBUFFER, env->handle.fboIdx);
+
+        int level = 0;
+        glFramebufferTexture2D (
+                GL_FRAMEBUFFER, 
+                GL_COLOR_ATTACHMENT0,	 
+                GL_TEXTURE_2D,
+                env->handle.texture2Idx,
+                level);
+
+        GLenum status = glCheckFramebufferStatus (GL_FRAMEBUFFER);
+        if (status != GL_FRAMEBUFFER_COMPLETE) {
+            LogE ("Framebuffer not ready. status code:0x%04x\n", status);
+        }
+    }
+
+    float vertex[] = {
+        -0.9,  0.9, 0,
+        -0.9, -0.9, 0,
+         0.9, -0.9, 0,
+         0.9,  0.9, 0
+    };
+
+    float texCoord[] = {
+        0, 1,
+        0, 0,
+        1, 0,
+        1, 1
+    };
+
+    float colors[] = {
+        0.0f, 1.0f, 0.2f
+    };
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, env->handle.texture1Idx);
+    glUniform1i(env->handle.sampler2dIdx, 0);
+
+    glEnableVertexAttribArray(env->handle.positionIdx);
+    glVertexAttribPointer(env->handle.positionIdx, 3, GL_FLOAT, GL_FALSE, 0, vertex);
+
+    glEnableVertexAttribArray(env->handle.texCoordIdx);
+    glVertexAttribPointer(env->handle.texCoordIdx, 2, GL_FLOAT, GL_FALSE, 0, texCoord);
+
+
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+    // Only rendering with OpenGL ES 2.0, so
+    // I simply call glFinish()
+    uint32_t t1 = getCurrentTime ();	
+    glFinish();
+    uint32_t t2 = getCurrentTime ();
+    Log ("Render cost %d ms\n", (t2 - t1) );
+
+    if (ON_SCREEN_RENDER == env->type ) {
+        Log ("On screen render\n");
+        swapEglBuffers (env);
+    } else if (OFF_SCREEN_RENDER == env->type) {
+        Log ("Off screen render\n");
+    }
 }
 
 /*
@@ -1341,14 +1427,15 @@ static void onDraw(SdkEnv *env) {
     glUseProgram(env->handle.program);
 
     if ( OFF_SCREEN_RENDER == env->type ) {
-        glBindFramebuffer (GL_FRAMEBUFFER, env->handle.fboId);
+        glBindFramebuffer (GL_FRAMEBUFFER, env->handle.fboIdx);
 
+        int level = 1;
         glFramebufferTexture2D (
                 GL_FRAMEBUFFER, 
                 GL_COLOR_ATTACHMENT0,	 
                 GL_TEXTURE_2D,
-                env->handle.textureId,
-                0);
+                env->handle.texture2Idx,
+                level);
 
         GLenum status = glCheckFramebufferStatus (GL_FRAMEBUFFER);
         if (status != GL_FRAMEBUFFER_COMPLETE) {
@@ -1358,7 +1445,6 @@ static void onDraw(SdkEnv *env) {
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, vertex);
     glEnableVertexAttribArray(0);
-    glUniform4fv(env->handle.color, 1, color);
     glDrawArrays(GL_TRIANGLE_FAN, 0, POINT_COUNT);
 
     // Only rendering with OpenGL ES 2.0, so
@@ -1488,6 +1574,7 @@ int read_jpeg(const char *path, Bitmap_t *mem)
 
     FILE *fp = fopen (path, "rb");
     if (NULL == fp) {
+        Log("Failed open %s\n", path);
         return -1;
     }
 
