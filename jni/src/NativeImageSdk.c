@@ -6,6 +6,7 @@
 
 #include <pthread.h>
 #include <stdint.h>
+#include <sys/types.h>
 #include <android/asset_manager_jni.h>
 #include <android/native_window_jni.h>
 #include "NativeImageSdk.h"
@@ -27,7 +28,8 @@ jlong JNICALL Java_org_imgsdk_core_NativeImageSdk_initSDK
 		return 0;
 	}
 
-	Log("initSDK pthread id:%lx\n", pthread_self() );
+	Log("initSDK pthread self:%lx\n", pthread_self() );
+	Log("initSDK pthread gettid:%x\n", gettid() );
 
 	jclass cls = (*env)->GetObjectClass(env, jcontext);
 	jmethodID mid = (*env)->GetMethodID(env, cls, 
@@ -77,7 +79,8 @@ jlong JNICALL Java_org_imgsdk_core_NativeImageSdk_initRenderSDK
 		return 0;
 	}
 
-	Log("initRenderSDK pthread id:%lx\n", pthread_self() );
+	Log("initRenderSDK pthread_self:%lx\n", pthread_self() );
+	Log("initRenderSDK gettid:%x\n", gettid() );
 
 	jclass cls = (*env)->GetObjectClass(env, jcontext);
 	jmethodID mid = (*env)->GetMethodID(env, cls, 
@@ -140,7 +143,8 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_freeSDK
 {
 	LOG_ENTRY;
 
-	Log("freeSDK pthread id:%lx\n", pthread_self() );
+	Log("freeSDK pthread self:%lx\n", pthread_self() );
+	Log("freeSDK gettid:%x\n", gettid() );
 
     SdkEnv *sdk = (SdkEnv *)((intptr_t) ptr);
     if (NULL != sdk) {
@@ -233,7 +237,8 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_setEffectCmd
 		return;
 	}
 
-	Log("setEffectCmd pthread id:%lx\n", pthread_self() );
+	Log("setEffectCmd pthread self:%lx\n", pthread_self() );
+	Log("setEffectCmd gettid:%x\n", gettid() );
 
 	char *cmd = jstring2string(env, jcommand);
     if (NULL == cmd) {
@@ -262,7 +267,8 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_executeCmd
 		return;
 	}
 
-	Log("executeCmd pthread id:%lx\n", pthread_self() );
+	Log("executeCmd pthread self:%lx\n", pthread_self() );
+	Log("executeCmd gettid :%x\n", gettid() );
 
 	swapEglBuffers(sdk);
     onSdkDraw (sdk);

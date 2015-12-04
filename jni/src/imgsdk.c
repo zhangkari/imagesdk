@@ -12,9 +12,10 @@
 #include <assert.h>
 #include <malloc.h>
 #include <math.h>
+#include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
-#include <pthread.h>
+#include <sys/types.h>
 #include <android/asset_manager.h>
 #include <android_native_app_glue.h>
 #include <GLES2/gl2.h>
@@ -1032,7 +1033,8 @@ int initSdkEnv(SdkEnv *env)
 {
     VALIDATE_NOT_NULL(env);
 
-	Log("initSdkEnv pthead id = %lx\n", pthread_self());
+	Log("initSdkEnv pthead self = %lx\n", pthread_self());
+	Log("initSdkEnv gettid = %x\n", gettid());
 
     uint32_t t_begin, t_finish;
 
@@ -1206,7 +1208,8 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
     LOG_ENTRY;
     VALIDATE_NOT_NULL2(env, cmd);
 
-	Log("pthead id = %lx\n", pthread_self());
+	Log("ptheadself = %lx\n", pthread_self());
+	Log("gettid = %x\n", gettid());
 
     env->effectCmd.invalid = 1;
     if (parseEffectCmd (cmd, &env->effectCmd) < 0) {
@@ -1395,7 +1398,8 @@ static void onDraw(SdkEnv *env) {
     }
     Log("onDraw()\n");
 
-	Log("pthead id = %lx\n", pthread_self());
+	Log("ptheadself = %lx\n", pthread_self());
+	Log("gettid = %x\n", gettid());
 
 #define POINT_COUNT 5
     // start vertex
