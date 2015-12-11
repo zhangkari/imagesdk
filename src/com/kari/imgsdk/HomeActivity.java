@@ -6,12 +6,17 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.Toast;
+
+import org.imgsdk.core.BitmapEx;
 
 public class HomeActivity extends Activity implements View.OnClickListener {
     private Button mBtnLoad;
     private Button mBtnGo;
     private ImageView mImageView;
 //    private ImageSdk mImageSdk;
+
+    BitmapEx bitmapEx;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,6 +32,7 @@ public class HomeActivity extends Activity implements View.OnClickListener {
         mBtnLoad = (Button) findViewById(R.id.home_btn_load);
         mBtnGo = (Button) findViewById(R.id.home_btn_go);
         mImageView = (ImageView) findViewById(R.id.home_iv_center);
+
     }
 
     private void setListeners() {
@@ -38,21 +44,27 @@ public class HomeActivity extends Activity implements View.OnClickListener {
     protected void onDestroy() {
         super.onDestroy();
 //        mImageSdk.onDestroy();
+
+        if (null != bitmapEx) {
+            bitmapEx.release();
+            bitmapEx = null;
+        }
     }
 
     @Override
     public void onClick(View view) {
         switch (view.getId()) {
             case R.id.home_btn_load:
-                if (mImageView.getVisibility() == View.GONE) {
-                    mImageView.setImageResource(R.drawable.bg);
-                    mImageView.setVisibility(View.VISIBLE);
-//                    mImageSdk.setEffectCmd("cmd = zoom-in | value = 1.2");
-//                    mImageSdk.executeCmd();
+                if (bitmapEx != null) {
+                    bitmapEx.release();
+                }
+
+                bitmapEx = new BitmapEx();
+                bitmapEx.create(2048, 2048);
+                if (null != bitmapEx.getBitmap()) {
+                    mImageView.setImageBitmap(bitmapEx.getBitmap());
                 } else {
-                    mImageView.setVisibility(View.GONE);
-//                    mImageSdk.setEffectCmd("cmd=zoom-out | value = 0.8f ");
-//                    mImageSdk.executeCmd();
+                    Toast.makeText(this, "bitmap = null", Toast.LENGTH_LONG).show();
                 }
                 break;
 

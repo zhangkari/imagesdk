@@ -301,6 +301,53 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_executeCmd
 	LOG_EXIT;
 }
 
+/*
+ * Class:     org_imgsdk_core_BitmapEx
+ * Method:    allocate
+ * Signature: (I)J
+ */
+JNIEXPORT jlong JNICALL Java_org_imgsdk_core_BitmapEx_allocate
+(JNIEnv *env, jobject thiz, jint size) 
+{
+	LOG_ENTRY;
+	char *mem = calloc(1, size);
+	//char *mem = malloc(size);
+	jlong ptr = (jlong)((intptr_t)mem);
+	LOG_EXIT;
+	return ptr;
+}
+
+/*
+ * Class:     org_imgsdk_core_BitmapEx
+ * Method:    release
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_org_imgsdk_core_BitmapEx_release
+  (JNIEnv *env, jobject thiz, jlong ptr)
+{
+	LOG_ENTRY;
+	char* mem = (char *) ((intptr_t) ptr);
+	free(mem);
+	LOG_EXIT;
+}
+
+/*
+ * Class:     org_imgsdk_core_BitmapEx
+ * Method:    convert2IntArray
+ * Signature: (JI)[I
+ */
+JNIEXPORT jbyteArray JNICALL Java_org_imgsdk_core_BitmapEx_convert2ByteArray
+  (JNIEnv *env, jobject thiz, jlong ptr, jint size)
+{
+	LOG_ENTRY;
+	jbyte* bytebuf = (jbyte *) ((intptr_t) ptr);
+
+	jbyteArray jarray = (*env)->NewByteArray(env, size);
+	(*env)->SetByteArrayRegion(env, jarray, 0, size, bytebuf);
+
+	LOG_EXIT;
+	return jarray;
+}
 
 /***
  * I am hesitated about how to register native methods;

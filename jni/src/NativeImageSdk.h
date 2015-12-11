@@ -64,6 +64,30 @@ JNIEXPORT void JNICALL Java_org_imgsdk_core_NativeImageSdk_setEffectCmd
 JNIEXPORT void JNICALL Java_org_imgsdk_core_NativeImageSdk_executeCmd
   (JNIEnv *, jobject, jlong, jobject jlistener, jobject jparam);
 
+/*
+ * Class:     org_imgsdk_core_BitmapEx
+ * Method:    allocate
+ * Signature: (I)J
+ */
+JNIEXPORT jlong JNICALL Java_org_imgsdk_core_BitmapEx_allocate
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     org_imgsdk_core_BitmapEx
+ * Method:    release
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_org_imgsdk_core_BitmapEx_release
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     org_imgsdk_core_BitmapEx
+ * Method:    convert2IntArray
+ * Signature: (JI)[I
+ */
+JNIEXPORT jbyteArray JNICALL Java_org_imgsdk_core_BitmapEx_convert2ByteArray
+  (JNIEnv *, jobject, jlong, jint);
+
 #ifdef __cplusplus
 }
 #endif
