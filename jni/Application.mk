@@ -5,9 +5,7 @@
 # author:	kari.zhang
 # 
 ################################
-
-#APP_ABI:=armeabi mips
-APP_ABI	:=	armeabi-v7a	
+APP_ABI	:=	armeabi-v7a armeabi x86 mips 	
 APP_PLATFORM:=android-14
 #APP_STL:=stlport_static
 #APP_CPPFLAGS += -fexceptions
