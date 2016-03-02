@@ -7,6 +7,7 @@
     <string name="go">继续</string>
     <string name="run">运行</string>
     <string name="switch_next">切换</string>
+    <string name="back">返回</string>
     <string name="aspect_ration">%1$d:%2$d</string>
 
 </resources>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+    <item android:drawable="@drawable/image_picker_item_focus_bg" android:state_selected="true" />
+    <item android:drawable="@drawable/image_picker_item_focus_bg" android:state_pressed="true" />
+    <item android:drawable="@drawable/image_picker_item_normal_bg" />
+    -->
+
+    <item android:drawable="@color/image_picker_item_normal_bg" android:state_focused="true" />
+    <item android:drawable="@color/image_picker_item_normal_bg" android:state_pressed="true" />
+    <item android:drawable="@color/image_picker_item_focus_bg" />
+
+    <!--
+    <item android:state_pressed="true">
+        <color android:color="@color/image_picker_item_focus_bg"/>
+    </item>
+
+    <item android:state_pressed="false">
+        <color android:color="@color/image_picker_item_normal_bg"/>
+    </item>
+    -->
+
+</selector>

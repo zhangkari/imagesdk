@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_width="80dp"
+    android:layout_height="80dp"
+    android:background="#334455"
+    android:clickable="true">
 
     <ImageView
         android:id="@+id/picker_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_gravity="center"
+        android:background="@drawable/image_picker_item_selector"
         android:contentDescription="@null" />
 
     <TextView
@@ -15,13 +18,17 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="top"
-        android:background="@android:color/transparent" />
+        android:background="@android:color/transparent"
+        android:gravity="right"
+        android:textSize="9sp" />
 
     <TextView
         android:id="@+id/picker_ratio"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:background="@android:color/transparent" />
+        android:background="@android:color/transparent"
+        android:gravity="right"
+        android:textSize="9sp" />
 
 </FrameLayout>

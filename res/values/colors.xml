@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="image_picker_item_normal_bg">#334455</color>
+    <color name="image_picker_item_focus_bg">#000000</color>
+
+    <color name="half_transparent">#77000000</color>
+</resources>

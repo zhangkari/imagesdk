@@ -6,12 +6,14 @@ import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.kari.imgsdk.R;
 import com.nostra13.universalimageloader.core.ImageLoader;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -22,11 +24,21 @@ public class ImagePickerAdapter extends RecyclerView.Adapter<ImagePickerAdapter.
     private Context context;
     private LayoutInflater mInflater;
     private List<String> mDataSource;
+    private AdapterView.OnItemClickListener mClickListener;
+    private AdapterView.OnItemLongClickListener mLongClickListener;
+
+    public ImagePickerAdapter(Context context) {
+        this(context, new ArrayList<String>());
+    }
 
     public ImagePickerAdapter(Context context, List<String> dataSource) {
         this.context = context;
         mInflater = LayoutInflater.from(context);
         mDataSource = dataSource;
+    }
+
+    public List<String> getDataSource() {
+        return mDataSource;
     }
 
     @Override
@@ -36,10 +48,28 @@ public class ImagePickerAdapter extends RecyclerView.Adapter<ImagePickerAdapter.
     }
 
     @Override
-    public void onBindViewHolder(PickerViewHolder holder, int position) {
+    public void onBindViewHolder(final PickerViewHolder holder, int position) {
         String path = mDataSource.get(position);
         ImageLoader.getInstance().displayImage("file://" + path, holder.image);
-        holder.type.setText(path.substring(path.lastIndexOf(".")));
+        holder.image.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (null != mClickListener) {
+                    mClickListener.onItemClick(null, view, holder.getAdapterPosition(), holder.getItemId());
+                }
+            }
+        });
+        holder.image.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View view) {
+                if (null != mLongClickListener) {
+                    return mLongClickListener.onItemLongClick(null, view, holder.getAdapterPosition(), holder.getItemId());
+                }
+                return false;
+            }
+        });
+
+        holder.type.setText(path.substring(path.lastIndexOf(".") + 1));
 
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
@@ -51,6 +81,14 @@ public class ImagePickerAdapter extends RecyclerView.Adapter<ImagePickerAdapter.
     @Override
     public int getItemCount() {
         return mDataSource.size();
+    }
+
+    public void setItemClickListener(AdapterView.OnItemClickListener listener) {
+        mClickListener = listener;
+    }
+
+    public void setItemLongClickListener(AdapterView.OnItemLongClickListener listener) {
+        mLongClickListener = listener;
     }
 
     static class PickerViewHolder extends RecyclerView.ViewHolder {

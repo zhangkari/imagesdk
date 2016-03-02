@@ -5,8 +5,9 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ImageView;
+
+import com.nostra13.universalimageloader.core.ImageLoader;
 
 import org.imgsdk.core.ImageSdk;
 import org.imgsdk.core.OnEditCompleteListener;
@@ -15,9 +16,11 @@ public class HomeActivity extends Activity implements View.OnClickListener, OnEd
 
     final static String TAG = "HomeActivity";
 
-    private Button mBtnPicker;
-    private Button mBtnLoad;
-    private Button mBtnGo;
+    final static int REQUEST_PICK_PATH = 0x4000;
+
+    private View mBtnPicker;
+    private View mBtnLoad;
+    private View mBtnGo;
     private ImageView mImageView;
     private ImageSdk mImageSdk;
 
@@ -32,9 +35,10 @@ public class HomeActivity extends Activity implements View.OnClickListener, OnEd
     }
 
     private void findViews() {
-        mBtnPicker = (Button) findViewById(R.id.home_btn_pick);
-        mBtnLoad = (Button) findViewById(R.id.home_btn_load);
-        mBtnGo = (Button) findViewById(R.id.home_btn_go);
+        mBtnPicker = findViewById(R.id.home_btn_pick);
+        mBtnLoad = findViewById(R.id.home_btn_load);
+        mBtnLoad.setVisibility(View.GONE);
+        mBtnGo = findViewById(R.id.home_btn_go);
         mImageView = (ImageView) findViewById(R.id.home_iv_center);
     }
 
@@ -54,27 +58,29 @@ public class HomeActivity extends Activity implements View.OnClickListener, OnEd
     public void onClick(View view) {
         switch (view.getId()) {
             case R.id.home_btn_pick:
-                mImageSdk.onDestroy();
-                startActivity(new Intent(this, ImagePickerActivity.class));
+                startActivityForResult(new Intent(this, ImagePickerActivity.class), REQUEST_PICK_PATH);
                 break;
 
             case R.id.home_btn_load:
-                if (mImageView.getVisibility() == View.GONE) {
-                    mImageView.setImageResource(R.drawable.bg);
-                    mImageView.setVisibility(View.VISIBLE);
-                    mImageSdk.setEffectCmd("cmd = zoom-in | value = 1.2");
-                    mImageSdk.executeCmd(this, null);
-                } else {
-                    mImageView.setVisibility(View.GONE);
-                    mImageSdk.setEffectCmd("cmd=zoom-out | value = 0.8f ");
-                    mImageSdk.executeCmd(this, null);
-                }
+                mImageSdk.setEffectCmd("cmd=zoom-out | value = 0.8f ");
+                mImageSdk.executeCmd(this, null);
                 break;
 
             case R.id.home_btn_go:
-                mImageSdk.onDestroy();
                 startActivity(new Intent(this, RenderActivity.class));
                 break;
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_PICK_PATH && resultCode == RESULT_OK) {
+            String path = data.getStringExtra("path");
+            ImageLoader.getInstance().displayImage("file://" + path, mImageView);
+            mImageView.setVisibility(View.VISIBLE);
+            mBtnLoad.setVisibility(View.VISIBLE);
+            mImageSdk.setInputPath(path);
         }
     }
 

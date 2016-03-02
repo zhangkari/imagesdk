@@ -50,6 +50,7 @@ public class ImageCollector {
                     int idx = cursor.getColumnIndex(MediaStore.Images.Media.DATA);
                     String path = cursor.getString(idx);
                     list.add(path);
+                    listener.onProgress(path);
                 }
                 cursor.close();
 
@@ -59,6 +60,8 @@ public class ImageCollector {
     }
 
     public interface OnCollectedListener {
+        void onProgress(String path);
+
         void onComplete(List<String> images);
 
         void onError(String message);
