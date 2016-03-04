@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
 
 import org.imgsdk.core.OnEditCompleteListener;
 import org.imgsdk.view.RenderSurfaceView;
@@ -12,7 +11,7 @@ import org.imgsdk.view.RenderSurfaceView;
 public class RenderActivity extends Activity {
     final String TAG = "RenderActivity";
     private RenderSurfaceView mSurfaceView;
-    private Button mBtnRun;
+    private View mRunView;
     private boolean hasSetInputPath;
 
     @Override
@@ -27,11 +26,11 @@ public class RenderActivity extends Activity {
 
     private void findViews() {
         mSurfaceView = (RenderSurfaceView) findViewById(R.id.render_surface_view);
-        mBtnRun = (Button) findViewById(R.id.render_btn_run);
+        mRunView = findViewById(R.id.render_btn_run);
     }
 
     private void setListeners() {
-        mBtnRun.setOnClickListener(new View.OnClickListener() {
+        mRunView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 if (!hasSetInputPath) {

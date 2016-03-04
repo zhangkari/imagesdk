@@ -24,6 +24,19 @@
 -allowaccessmodification
 -optimizations !code/simplification/arithmetic
 -keepattributes *Annotation*
+
+-dontwarn android.support.**
+-dontwarn com.nostra13.universalimageloader.**
+
+-keep class com.nostra13.universalimageloader.**
+-keep class com.nostra13.universalimageloader.**{*;}
+
+-keep class android.support.v4.**
+-keep class android.support.v4.**{*;}
+
+-keep class android.support.v7.**
+-keep class android.support.v7.**{*;}
+
 -keep public class * extends android.app.Activity
 -keep public class * extends android.app.Application
 -keep public class * extends android.app.Service
@@ -66,7 +79,7 @@
     public <init>(android.content.Context, android.util.AttributeSet, int);
 }
 
--keep class core.org.imgsdk.* {*;}
+-keep class org.imgsdk.** {*;}
 
 -keepclasseswithmembers class *{
     public *;

@@ -1,8 +1,28 @@
 apply plugin: 'com.android.application'
 
+def releaseTime() {
+    return new Date().format("yyyy-MM-dd", TimeZone.getTimeZone("UTC"))
+}
+
 android {
     compileSdkVersion 14
     buildToolsVersion "19.1.0"
+
+    signingConfigs {
+        release {
+            keyAlias 'release'
+            keyPassword 'release_imgsdk'
+            storeFile file('../release.keystore')
+            storePassword 'release_imgsdk'
+        }
+
+        debug {
+            keyAlias 'debug'
+            keyPassword 'debug123'
+            storeFile file('../debug.keystore')
+            storePassword 'debug123'
+        }
+    }
 
     defaultConfig {
         applicationId "com.kari.imgsdk"
@@ -19,27 +39,50 @@ android {
     }
 
     buildTypes {
-        release {
-            buildConfigField("boolean", "LOG_DEBUG", "false")
+        debug {
+            debuggable true
+            buildConfigField("boolean", "LOG_DEBUG", "true")
+            versionNameSuffix "-debug"
+            zipAlignEnabled true
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-project.txt'), 'proguard-rules.pro'
+            shrinkResources false
         }
 
-        debug {
-            buildConfigField("boolean", "LOG_DEBUG", "true")
-            minifyEnabled false
+        release {
+            debuggable false
+            buildConfigField("boolean", "LOG_DEBUG", "false")
+            proguardFiles 'proguard-project.txt'
+            zipAlignEnabled true
+            minifyEnabled true
+            shrinkResources true
+            signingConfig signingConfigs.release
+
+            applicationVariants.all { variant ->
+                variant.outputs.each { output ->
+                    def outputFile = output.outputFile
+                    if (outputFile != null && outputFile.name.endsWith('.apk')) {
+                        def fileName = "imagesdk_v${defaultConfig.versionName}_${releaseTime()}${variant.productFlavors[0].name}.apk"
+                        output.outputFile = new File(outputFile.parent, fileName)
+                    }
+                }
+            }
         }
     }
 
-    signingConfigs {
-        releaseConfig {
-            keyAlias 'stone'
-            keyPassword 'mypwd'
-            storeFile file('../imgsdk.keystore')
-            storePassword 'mypwd'
-        }
-        debugConfig {
+    productFlavors {
+        _baidu {}
+        _tencent {}
+        _360 {}
+        _91 {}
+        _taobao {}
+        _xiaomi {}
+        _nearme {}
+        _anzhuo {}
+        _anzhi {}
+        _meizu {}
 
+        productFlavors.all { flavor ->
+            flavor.manifestPlaceholders = [CHANNEL_VALUE: name]
         }
     }
 

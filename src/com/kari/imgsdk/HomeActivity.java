@@ -62,7 +62,7 @@ public class HomeActivity extends Activity implements View.OnClickListener, OnEd
                 break;
 
             case R.id.home_btn_load:
-                mImageSdk.setEffectCmd("cmd=zoom-out | value = 0.8f ");
+                mImageSdk.setEffectCmd("{\"effect\":\"Rotate\",\"degree\":90}");
                 mImageSdk.executeCmd(this, null);
                 break;
 

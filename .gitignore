@@ -4,6 +4,12 @@ obj
 bin
 gen
 
+# jni output
+libs/armeabi
+libs/armeabi-v7a
+libs/mips
+libs/x86
+
 # ant configuration files
 .ant-targets-build.xml
 
