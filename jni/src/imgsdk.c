@@ -663,6 +663,20 @@ static int releaseShader(SdkEnv *env) {
     glReleaseShaderCompiler();
 }
 
+static void freeEffectCmd(eftcmd_t *cmd) {
+    if (NULL == cmd) {
+        return;
+    }
+    cmd->capacity = 0;
+    cmd->valid = false;
+    cmd->cmd = ec_NORMAL;
+    cmd->count = 0;
+    if (NULL != cmd->params) {
+        free(cmd->params);
+        cmd->params = NULL;
+    }
+}
+
 /**
  * Free SdkEnv resource
  */
@@ -721,6 +735,8 @@ int freeSdkEnv(SdkEnv *env)
         glDeleteFramebuffers (1, &env->handle.fboIdx);
         glDeleteTextures (1, &env->handle.texture2Idx);
     }
+
+    freeEffectCmd(&env->effectCmd);
 
     free (env);
 }
@@ -1025,6 +1041,21 @@ static int readFileFromAssets(const SdkEnv *sdk,
     return size + 1;
 }
 
+static bool initEffectCmd(eftcmd_t *cmd) {
+   if (NULL == cmd) {
+        return false;
+   }
+
+#define MAX_EFFECT_PARAM_COUNT 8
+    cmd->capacity = MAX_EFFECT_PARAM_COUNT;
+    cmd->valid = true;
+    cmd->cmd = ec_NORMAL;
+    cmd->count = 0;
+    cmd->params = (int *)calloc(cmd->capacity, sizeof(int));
+    assert(NULL != cmd->params);
+
+    return true;
+}
 
 /**
  * Initialize the specified SdkEnv instance
@@ -1055,6 +1086,9 @@ int initSdkEnv(SdkEnv *env)
         return -1;
     }
     env->userCmd = userCmd;
+
+    bool result = initEffectCmd(&env->effectCmd);
+    assert(result);
 
     if (NULL != env->egl.window) {	// On-screen render
         t_begin = getCurrentTime();
@@ -1211,7 +1245,7 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
 	Log("ptheadself = %lx\n", pthread_self());
 	Log("gettid = %x\n", gettid());
 
-    env->effectCmd.invalid = 1;
+    env->effectCmd.valid = false;
     if (parseEffectCmd (cmd, &env->effectCmd) < 0) {
         LogE ("Failed parseEffectCmd FIXME! \n");
     }

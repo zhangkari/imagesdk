@@ -16,9 +16,9 @@ static int parseNormalEffect (const cJSON *json, eftcmd_t *eftcmd) {
         return -1;
     }
     eftcmd->cmd = ec_NORMAL;
-    eftcmd->paramCnt = 0;
-    eftcmd->paramSet = NULL;
-    eftcmd->invalid = 0;
+    eftcmd->count = 0;
+    eftcmd->params = NULL;
+    eftcmd->valid = false;
     return 0;
 }
 
@@ -37,9 +37,9 @@ static int parseRotateEffect (cJSON *json, eftcmd_t *eftcmd) {
 	}
     
     eftcmd->cmd = ec_ROTATE;
-    eftcmd->paramCnt = 1;
-    *(eftcmd->paramSet) = jparam->valueint;
-    eftcmd->invalid = 0;
+    eftcmd->count = 1;
+    *(eftcmd->params) = jparam->valueint;
+    eftcmd->valid = true;
 
     return 0;
 }
@@ -59,9 +59,9 @@ static int parseScaleEffect (cJSON *json, eftcmd_t *eftcmd) {
 	}
     
     eftcmd->cmd = ec_SCALE;
-    eftcmd->paramCnt = 1;
-    *(eftcmd->paramSet) = jparam->valueint;
-    eftcmd->invalid = 0;
+    eftcmd->count = 1;
+    *(eftcmd->params) = jparam->valueint;
+    eftcmd->valid = true;
 
     return 0;
 }
@@ -100,12 +100,12 @@ static int parseClipEffect (cJSON *json, eftcmd_t *eftcmd) {
     }
 
     eftcmd->cmd = ec_CLIP;
-    eftcmd->paramCnt = 4;
-    eftcmd->paramSet[0] = jx->valueint;
-    eftcmd->paramSet[1] = jy->valueint;
-    eftcmd->paramSet[2] = jw->valueint;
-    eftcmd->paramSet[3] = jh->valueint;
-    eftcmd->invalid = 0;
+    eftcmd->count = 4;
+    eftcmd->params[0] = jx->valueint;
+    eftcmd->params[1] = jy->valueint;
+    eftcmd->params[2] = jw->valueint;
+    eftcmd->params[3] = jh->valueint;
+    eftcmd->valid = true;
 
     return -1;
 }

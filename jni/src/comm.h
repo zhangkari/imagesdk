@@ -59,4 +59,9 @@
 #define LogE(...) ((void)printf( __VA_ARGS__))
 #endif
 
+typedef char bool;
+#define true 1
+#define false 0
+
+
 #endif

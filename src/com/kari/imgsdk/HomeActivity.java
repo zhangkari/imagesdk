@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 import com.nostra13.universalimageloader.core.ImageLoader;
 
@@ -21,8 +22,11 @@ public class HomeActivity extends Activity implements View.OnClickListener, OnEd
     private View mBtnPicker;
     private View mBtnLoad;
     private View mBtnGo;
+
     private ImageView mImageView;
     private ImageSdk mImageSdk;
+
+    private String mInputPath;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,12 +66,22 @@ public class HomeActivity extends Activity implements View.OnClickListener, OnEd
                 break;
 
             case R.id.home_btn_load:
+                if (mInputPath == null) {
+                    Toast.makeText(this, "请先选择图片", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                mImageSdk.setInputPath(mInputPath);
+                mImageSdk.setOutputPath("/sdcard/output.jpg");
                 mImageSdk.setEffectCmd("{\"effect\":\"Rotate\",\"degree\":90}");
                 mImageSdk.executeCmd(this, null);
                 break;
 
             case R.id.home_btn_go:
-                startActivity(new Intent(this, RenderActivity.class));
+                if (null == mInputPath) {
+                    Toast.makeText(this, "请先选择图片", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                startActivity(new Intent(this, RenderActivity.class).putExtra("path", mInputPath));
                 break;
         }
     }
@@ -80,7 +94,7 @@ public class HomeActivity extends Activity implements View.OnClickListener, OnEd
             ImageLoader.getInstance().displayImage("file://" + path, mImageView);
             mImageView.setVisibility(View.VISIBLE);
             mBtnLoad.setVisibility(View.VISIBLE);
-            mImageSdk.setInputPath(path);
+            mInputPath = path;
         }
     }
 

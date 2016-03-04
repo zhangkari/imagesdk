@@ -9,6 +9,8 @@
 #ifndef __EFTCMD__H__
 #define __EFTCMD__H__
 
+#include <comm.h>
+
 /*
  * Define effect command
  */
@@ -23,10 +25,11 @@ typedef enum {
 } ecEnum;
 
 typedef struct {
-	ecEnum	 cmd;		// effect command
-	int		 paramCnt;	// parameter count
-	int		 *paramSet;	// params
-	int      invalid;	// if the cmd is invalid 
+	ecEnum	 cmd;		    // effect command
+	bool     valid;	        // if the cmd is valid 
+	int		 count;	        // parameter count
+	int		 *params;	    // params
+    int      capacity;      // capacity of paramSet
 } eftcmd_t;
 
 /**

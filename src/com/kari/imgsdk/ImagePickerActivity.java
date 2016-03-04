@@ -60,6 +60,7 @@ public class ImagePickerActivity extends Activity implements ImageCollector.OnCo
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        ImageCollector.destroy();
         mHandler = null;
     }
 

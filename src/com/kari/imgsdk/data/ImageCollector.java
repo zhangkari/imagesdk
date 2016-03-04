@@ -25,6 +25,10 @@ public class ImageCollector {
         }
     }
 
+    public static void destroy() {
+        sInstance = null;
+    }
+
     public static ImageCollector getInstance() {
         return sInstance;
     }
