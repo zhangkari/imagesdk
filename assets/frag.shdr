@@ -10,8 +10,18 @@ uniform sampler2D uSampler2D;
 varying mediump vec2 vTexCoord;
 varying mediump vec4 vColor;
 
+mediump vec4 color;
+
+// how to add const qualifier ?
+mediump vec3 HALF = vec3(0.5, 0.5, 0.5);
+
 void main()
 {
-	gl_FragColor = texture2D(uSampler2D, vTexCoord);
-    //gl_FragColor = vColor;
+	color = texture2D(uSampler2D, vTexCoord);
+
+    mediump vec3  rgb = color.rgb;
+    mediump float value = dot(rgb, HALF);
+    color.rgb = vec3(value, value, value);
+
+    gl_FragColor = color;
 }
