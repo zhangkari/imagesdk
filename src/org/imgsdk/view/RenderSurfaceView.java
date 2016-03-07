@@ -42,13 +42,15 @@ public class RenderSurfaceView extends SurfaceView implements android.view.Surfa
     @Override
     public void invalidate() {
         super.invalidate();
-        mImageSdk.swapBuffer();
-        mImageSdk.invalidate();
+        if (null != mImageSdk) {
+            mImageSdk.swapBuffer();
+            mImageSdk.invalidate();
+        }
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder surfaceHolder) {
-        Log.d(TAG, "surfaceCreated thread id:"+Thread.currentThread().getId());
+        Log.d(TAG, "surfaceCreated thread id:" + Thread.currentThread().getId());
         mImageSdk = new ImageSdk(getContext(), surfaceHolder.getSurface());
         mImageSdk.onCreate();
     }
