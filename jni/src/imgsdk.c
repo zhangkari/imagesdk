@@ -1363,9 +1363,30 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
 }
 
 static void onRender(SdkEnv *env) {
-    glViewport(0, 0, env->egl.width, env->egl.height);
-	
-    Log("width:%d, height:%d\n", env->egl.width, env->egl.height);
+
+    if (NULL == env) {
+        LogE("sdk context = NULL in onRender()\n");
+        return;
+    }
+
+    Bitmap_t *bmp = (Bitmap_t *)env->userData.param;
+    Log("image:%d x %d\n", bmp->width, bmp->height);
+    Log("surface:%d x %d\n", env->egl.width, env->egl.height);
+    float imgRatio = bmp->height / (float)bmp->width;
+    float winRatio = env->egl.height / (float) env->egl.width;
+
+    int width, height;
+    if (imgRatio >= winRatio) {
+        height = env->egl.height;
+        width = (int)(height / (float)imgRatio);
+    } else {
+        width = env->egl.width;
+        height = (int)(width * imgRatio);
+    }
+    int left = (env->egl.width - width) / 2;
+    int top = (env->egl.height - height) / 2;
+    Log("view port: (%d, %d, %d, %d\n", left, top, width, height);
+    glViewport(left, top, width, height);
 
     glClear(GL_COLOR_BUFFER_BIT);
     glClearColor (0.0f, 0.0f, 0.0f, 1.0f);
