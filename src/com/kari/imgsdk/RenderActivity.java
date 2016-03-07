@@ -4,7 +4,11 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
+import android.widget.ImageView;
+
+import com.nostra13.universalimageloader.core.ImageLoader;
 
 import org.imgsdk.core.OnEditCompleteListener;
 import org.imgsdk.view.RenderSurfaceView;
@@ -12,6 +16,8 @@ import org.imgsdk.view.RenderSurfaceView;
 public class RenderActivity extends Activity {
     final String TAG = "RenderActivity";
 
+    private View mCenterLayout;
+    private ImageView mCompareView;
     private RenderSurfaceView mSurfaceView;
     private View mSwitchView;
     private View mBackView;
@@ -48,6 +54,9 @@ public class RenderActivity extends Activity {
     }
 
     private void findViews() {
+        mCenterLayout = findViewById(R.id.render_center_layout);
+        mCompareView = (ImageView) findViewById(R.id.render_compare_view);
+        ImageLoader.getInstance().displayImage("file://" + mInputPath, mCompareView);
         mSurfaceView = (RenderSurfaceView) findViewById(R.id.render_surface_view);
         mSwitchView = findViewById(R.id.render_switch_view);
         mBackView = findViewById(R.id.render_back_view);
@@ -60,11 +69,11 @@ public class RenderActivity extends Activity {
                 if (!hasSetInputPath) {
                     mSurfaceView.getRenderer().setInputPath(mInputPath);
                     mSurfaceView.getRenderer().setOutputPath("/sdcard/output.jpg");
+                    mSurfaceView.getRenderer().setEffectCmd("{\"effect\":\"Normal\"}");
+                    mSurfaceView.getRenderer().executeCmd(mCompleteListener, null);
                     hasSetInputPath = true;
                 }
                 Log.d(TAG, "thread id:" + Thread.currentThread().getId());
-                mSurfaceView.getRenderer().setEffectCmd("{\"effect\":\"Normal\"}");
-                mSurfaceView.getRenderer().executeCmd(mCompleteListener, null);
                 mSurfaceView.invalidate();
             }
         });
@@ -73,6 +82,20 @@ public class RenderActivity extends Activity {
             @Override
             public void onClick(View view) {
                 finish();
+            }
+        });
+
+        mCenterLayout.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View view, MotionEvent motionEvent) {
+                int action = motionEvent.getAction();
+                if (action == MotionEvent.ACTION_DOWN) {
+                    mCompareView.setVisibility(View.VISIBLE);
+                } else if (action == MotionEvent.ACTION_UP) {
+                    mCompareView.setVisibility(View.GONE);
+                }
+
+                return true;
             }
         });
     }

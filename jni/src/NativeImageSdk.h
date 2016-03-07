@@ -34,6 +34,22 @@ JNIEXPORT void JNICALL Java_org_imgsdk_core_NativeImageSdk_freeSDK
 
 /*
  * Class:     org_imgsdk_core_NativeImageSdk
+ * Method:    swapBuffer
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_org_imgsdk_core_NativeImageSdk_swapBuffer
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     org_imgsdk_core_NativeImageSdk
+ * Method:    invalidate 
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_org_imgsdk_core_NativeImageSdk_invalidate
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     org_imgsdk_core_NativeImageSdk
  * Method:    setInputPath
  * Signature: (JLjava/lang/String;)V
  */

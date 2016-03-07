@@ -789,14 +789,23 @@ static int attachShader(SdkEnv *env,
     // log openGL information
     const GLubyte* version = glGetString(GL_VERSION);
     Log ("Version:%s\n", version);
+
     const GLubyte* renderer = glGetString(GL_RENDERER);
     Log ("Render:%s\n", renderer);
+	
     const GLubyte* vendor = glGetString(GL_VENDOR);
     Log ("Vendor:%s\n", vendor);
-#if 0
+
+	GLboolean shaderCompiler;
+	glGetBooleanv(GL_SHADER_COMPILER, &shaderCompiler);
+	if (shaderCompiler) {
+		Log ("Support shader compiler\n");
+	} else {
+		Log ("Do not support shader compiler\n");
+	}
+
     const GLubyte* extension = glGetString (GL_EXTENSIONS);
     Log ("Extensions:\n%s\n\n", extension);
-#endif
 
     if(createProgram(env, vertSource, fragSource) < 0) {
         LogE("Failed createProgram\n");
@@ -1355,6 +1364,9 @@ int setEffectCmd(SdkEnv* env, const char* cmd)
 
 static void onRender(SdkEnv *env) {
     glViewport(0, 0, env->egl.width, env->egl.height);
+	
+    Log("width:%d, height:%d\n", env->egl.width, env->egl.height);
+
     glClear(GL_COLOR_BUFFER_BIT);
     glClearColor (0.0f, 0.0f, 0.0f, 1.0f);
     glUseProgram(env->handle.program);
@@ -1377,10 +1389,10 @@ static void onRender(SdkEnv *env) {
     }
 
     float vertex[] = {
-        -0.9,  0.9, 0,
-        -0.9, -0.9, 0,
-         0.9, -0.9, 0,
-         0.9,  0.9, 0
+        -1.0,  1.0, 0,
+        -1.0, -1.0, 0,
+         1.0, -1.0, 0,
+         1.0,  1.0, 0
     };
 
     float texCoord[] = {
@@ -1716,9 +1728,10 @@ int loadImage (const char *path, Bitmap_t *mem)
         return -1;
     }
 
-    if (strcasecmp (postfix, "jpg") == 0) {
-        return read_jpeg (path, mem);
-    }
+	if (strcasecmp (postfix, "jpg") == 0 ||
+			strcasecmp (postfix, "jpeg") == 0) {
+		return read_jpeg (path, mem);
+	}
     else if (strcasecmp (postfix, "png") == 0) {
         return read_png (path, mem);
     }

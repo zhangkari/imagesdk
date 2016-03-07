@@ -60,4 +60,12 @@ public final class ImageSdk {
     public void executeCmd(OnEditCompleteListener listener, Object param) {
         nativeImageSdk.executeCmd(mPointer, listener, param);
     }
+
+    public void swapBuffer() {
+        nativeImageSdk.swapBuffer(mPointer);
+    }
+
+    public void invalidate() {
+        nativeImageSdk.invalidate(mPointer);
+    }
 }

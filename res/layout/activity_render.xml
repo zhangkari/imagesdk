@@ -64,11 +64,24 @@
         </RelativeLayout>
     </LinearLayout>
 
-    <org.imgsdk.view.RenderSurfaceView
-        android:id="@+id/render_surface_view"
+    <FrameLayout
+        android:id="@+id/render_center_layout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@id/home_bottom_layout"
-        android:layout_below="@id/home_top_layout" />
+        android:layout_below="@id/home_top_layout">
+
+        <org.imgsdk.view.RenderSurfaceView
+            android:id="@+id/render_surface_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <ImageView
+            android:visibility="gone"
+            android:contentDescription="@null"
+            android:id="@+id/render_compare_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </FrameLayout>
 
 </RelativeLayout>

@@ -155,6 +155,40 @@ void JNICALL Java_org_imgsdk_core_NativeImageSdk_freeSDK
 
 /*
  * Class:     org_imgsdk_core_NativeImageSdk
+ * Method:    swapBuffer
+ * Signature: (J)V
+ */
+void JNICALL Java_org_imgsdk_core_NativeImageSdk_swapBuffer
+  (JNIEnv *env, jobject thiz, jlong ptr)
+{
+	LOG_ENTRY;
+
+    SdkEnv *sdk = (SdkEnv *)((intptr_t) ptr);
+	if (NULL != sdk) {
+		swapEglBuffers(sdk);
+	}
+	LOG_EXIT;
+}
+
+/*
+ * Class:     org_imgsdk_core_NativeImageSdk
+ * Method:    invalidate
+ * Signature: (J)V
+ */
+void JNICALL Java_org_imgsdk_core_NativeImageSdk_invalidate
+  (JNIEnv *env, jobject thiz, jlong ptr)
+{
+	LOG_ENTRY;
+
+    SdkEnv *sdk = (SdkEnv *)((intptr_t) ptr);
+	if (NULL != sdk) {
+		onSdkDraw (sdk);
+	}
+	LOG_EXIT;
+}
+
+/*
+ * Class:     org_imgsdk_core_NativeImageSdk
  * Method:    setInputPath
  * Signature: (JLjava/lang/String;)V
  */

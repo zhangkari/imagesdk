@@ -42,6 +42,8 @@ public class RenderSurfaceView extends SurfaceView implements android.view.Surfa
     @Override
     public void invalidate() {
         super.invalidate();
+        mImageSdk.swapBuffer();
+        mImageSdk.invalidate();
     }
 
     @Override
