@@ -29,5 +29,12 @@ inline const char const * getFilePostfix (const char *path)
 	if (len < MIN_POSTFIX_LEN) {
 		return NULL;
 	}
-	return path + len - 3;
+
+	while (len-- > 0) {
+		if ( *(path + len) == '.') {
+			return path + len + 1;
+		}
+	}
+
+	return NULL;
 }
