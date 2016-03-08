@@ -1196,7 +1196,8 @@ int setInputImagePath (SdkEnv* env, const char* path)
     env->userData.inputPath = strdup (path);
     env->userData.active = ACTIVE_PATH;
 	const char const *postfix = getFilePostfix (path);
-	if (strcasecmp (postfix, "jpg") == 0) {
+	if (strcasecmp (postfix, "jpg") == 0 ||
+			strcasecmp (postfix, "jpeg") == 0) {
 		env->userData.inputImageType = IMAGE_JPG;
 	}
 	else if (strcasecmp (postfix, "png") == 0) {
@@ -1784,9 +1785,10 @@ int saveImage (const char *path, const Bitmap_t *mem)
         return -1;
     }
 
-    if (strcasecmp (postfix, "jpg") == 0) {
-        return write_jpeg (path, mem);
-    }
+	if (strcasecmp (postfix, "jpg") == 0 ||
+			strcasecmp (postfix, "jpeg") == 0) {
+		return write_jpeg (path, mem);
+	}
     else if (strcasecmp (postfix, "png") == 0) {
         return write_png (path, mem);
     }
