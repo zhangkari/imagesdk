@@ -804,6 +804,10 @@ static int attachShader(SdkEnv *env,
 		Log ("Do not support shader compiler\n");
 	}
 
+	GLint max_text;
+	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_text);
+	Log ("Max texture size:%d\n", max_text);
+
     const GLubyte* extension = glGetString (GL_EXTENSIONS);
     Log ("Extensions:\n%s\n\n", extension);
 
