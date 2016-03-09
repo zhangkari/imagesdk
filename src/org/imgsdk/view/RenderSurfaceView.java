@@ -7,6 +7,7 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 import org.imgsdk.core.ImageSdk;
+import org.imgsdk.core.OnEditCompleteListener;
 
 /**
  * Created by ws-kari on 15-11-14.
@@ -14,29 +15,57 @@ import org.imgsdk.core.ImageSdk;
 public class RenderSurfaceView extends SurfaceView implements android.view.SurfaceHolder.Callback {
     final static String TAG = "RenderSurfaceView";
     private ImageSdk mImageSdk;
+    private String mInputPath;
+    private String mOutputPath;
+    private String mEffectCmd;
+    private Object mParam;
+    private OnEditCompleteListener mListener;
 
     public RenderSurfaceView(Context context) {
         super(context);
-        init();
     }
 
     public RenderSurfaceView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        init();
     }
 
     public RenderSurfaceView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
-        init();
     }
 
-    private void init() {
+    public void init() {
         getHolder().addCallback(this);
         Log.d(TAG, "thread id:" + Thread.currentThread().getId());
     }
 
-    public ImageSdk getRenderer() {
-        return mImageSdk;
+    public void setInputPath(String path) {
+        if (null == path) {
+            throw new NullPointerException("path = null");
+        }
+        mInputPath = path;
+    }
+
+    public void setEffectCmd(String cmd) {
+        if (null == cmd) {
+            throw new NullPointerException("cmd = null");
+        }
+        mEffectCmd = cmd;
+    }
+
+    public void setOutputPath(String path) {
+        if (null == path) {
+            throw new NullPointerException("path = null");
+        }
+        mOutputPath = path;
+    }
+
+    public void executeCmd(OnEditCompleteListener listener, Object param) {
+        if (null == listener) {
+            throw new NullPointerException("listener = null");
+        }
+
+        mListener = listener;
+        mParam = param;
     }
 
     @Override
@@ -52,7 +81,18 @@ public class RenderSurfaceView extends SurfaceView implements android.view.Surfa
     public void surfaceCreated(SurfaceHolder surfaceHolder) {
         Log.d(TAG, "surfaceCreated thread id:" + Thread.currentThread().getId());
         mImageSdk = new ImageSdk(getContext(), surfaceHolder.getSurface());
-        mImageSdk.onCreate();
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                mImageSdk.onCreate();
+                mImageSdk.setInputPath(mInputPath);
+                mImageSdk.setOutputPath(mOutputPath);
+                mImageSdk.setEffectCmd(mEffectCmd);
+                mImageSdk.executeCmd(mListener, mParam);
+            }
+        }).start();
+
     }
 
     @Override

@@ -21,8 +21,7 @@ public class RenderActivity extends Activity {
     private RenderSurfaceView mSurfaceView;
     private View mSwitchView;
     private View mBackView;
-
-    private boolean hasSetInputPath;
+    private View mProgressView;
 
     private String mInputPath;
 
@@ -32,6 +31,8 @@ public class RenderActivity extends Activity {
         setContentView(R.layout.activity_render);
         getInputPath(savedInstanceState);
         findViews();
+        setRenderParams();
+        mSurfaceView.init();
         setListeners();
 
         Log.d(TAG, "thread id:" + Thread.currentThread().getId());
@@ -60,19 +61,20 @@ public class RenderActivity extends Activity {
         mSurfaceView = (RenderSurfaceView) findViewById(R.id.render_surface_view);
         mSwitchView = findViewById(R.id.render_switch_view);
         mBackView = findViewById(R.id.render_back_view);
+        mProgressView = findViewById(R.id.render_progress_layout);
+    }
+
+    private void setRenderParams() {
+        mSurfaceView.setInputPath(mInputPath);
+        mSurfaceView.setOutputPath("/sdcard/output.jpg");
+        mSurfaceView.setEffectCmd("{\"effect\":\"Normal\"}");
+        mSurfaceView.executeCmd(mCompleteListener, null);
     }
 
     private void setListeners() {
         mSwitchView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (!hasSetInputPath) {
-                    mSurfaceView.getRenderer().setInputPath(mInputPath);
-                    mSurfaceView.getRenderer().setOutputPath("/sdcard/output.jpg");
-                    mSurfaceView.getRenderer().setEffectCmd("{\"effect\":\"Normal\"}");
-                    mSurfaceView.getRenderer().executeCmd(mCompleteListener, null);
-                    hasSetInputPath = true;
-                }
                 Log.d(TAG, "thread id:" + Thread.currentThread().getId());
                 mSurfaceView.invalidate();
             }
@@ -104,6 +106,13 @@ public class RenderActivity extends Activity {
         @Override
         public void onSuccess(String path, Object param) {
             Log.d(TAG, "onSuccess() path=" + path + ", thread id = " + Thread.currentThread().getId());
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    mProgressView.setVisibility(View.GONE);
+                }
+            });
         }
 
         @Override
