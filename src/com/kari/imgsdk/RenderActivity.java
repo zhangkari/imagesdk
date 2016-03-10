@@ -19,7 +19,6 @@ public class RenderActivity extends Activity {
     private View mCenterLayout;
     private ImageView mCompareView;
     private RenderSurfaceView mSurfaceView;
-    private View mSwitchView;
     private View mBackView;
     private View mProgressView;
 
@@ -51,6 +50,8 @@ public class RenderActivity extends Activity {
             return false;
         }
 
+        Log.d(TAG, "input path:" + mInputPath);
+
         return true;
     }
 
@@ -59,7 +60,6 @@ public class RenderActivity extends Activity {
         mCompareView = (ImageView) findViewById(R.id.render_compare_view);
         ImageLoader.getInstance().displayImage("file://" + mInputPath, mCompareView);
         mSurfaceView = (RenderSurfaceView) findViewById(R.id.render_surface_view);
-        mSwitchView = findViewById(R.id.render_switch_view);
         mBackView = findViewById(R.id.render_back_view);
         mProgressView = findViewById(R.id.render_progress_layout);
     }
@@ -72,14 +72,6 @@ public class RenderActivity extends Activity {
     }
 
     private void setListeners() {
-        mSwitchView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Log.d(TAG, "thread id:" + Thread.currentThread().getId());
-                mSurfaceView.invalidate();
-            }
-        });
-
         mBackView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {

@@ -30,7 +30,7 @@ public class ImagePickerActivity extends Activity implements ImageCollector.OnCo
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_image_picker);
+        setContentView(R.layout.activity_picker);
         mHandler = new MyHandler(this);
         findViews();
         ImageCollector.init(this);
@@ -40,15 +40,27 @@ public class ImagePickerActivity extends Activity implements ImageCollector.OnCo
     private void findViews() {
         RecyclerView recyclerView = (RecyclerView) findViewById(R.id.picker_recycler_view);
         mAdapter = new ImagePickerAdapter(this);
+        String path = "drawable://" + R.drawable.camera;
+        Message msg = new Message();
+        msg.what = EventCode.EVENT_ADD_DEFAULT_ICON;
+        msg.obj = path;
+        mHandler.sendMessage(msg);
         mAdapter.setItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                 String path = mAdapter.getDataSource().get(i);
                 Log.d(TAG, "path=" + path);
-                Intent intent = new Intent();
-                intent.putExtra("path", path);
-                setResult(RESULT_OK, intent);
-                finish();
+                if (i == 0) {
+                    startActivity(new Intent(ImagePickerActivity.this, CameraActivity.class));
+                    finish();
+                } else {
+                    Intent intent = new Intent();
+                    path = path.replace("file://", "");
+                    Log.d(TAG, "path=" + path);
+                    intent.putExtra("path", path);
+                    setResult(RESULT_OK, intent);
+                    finish();
+                }
             }
         });
         recyclerView.setAdapter(mAdapter);
@@ -106,9 +118,15 @@ public class ImagePickerActivity extends Activity implements ImageCollector.OnCo
 
                     case EventCode.EVENT_COLLECT_IMAGE_PROGRESS:
                         String path = (String) message.obj;
-                        activity.mAdapter.getDataSource().add(path);
+                        activity.mAdapter.getDataSource().add("file://" + path);
                         int lastIndex = activity.mAdapter.getItemCount() - 1;
                         activity.mAdapter.notifyItemChanged(lastIndex);
+                        break;
+
+                    case EventCode.EVENT_ADD_DEFAULT_ICON:
+                        activity.mAdapter.getDataSource().add((String)(message.obj));
+                        int index = activity.mAdapter.getItemCount() - 1;
+                        activity.mAdapter.notifyItemChanged(index);
                         break;
                 }
             }

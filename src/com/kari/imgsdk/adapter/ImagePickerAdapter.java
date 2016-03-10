@@ -50,7 +50,7 @@ public class ImagePickerAdapter extends RecyclerView.Adapter<ImagePickerAdapter.
     @Override
     public void onBindViewHolder(final PickerViewHolder holder, int position) {
         String path = mDataSource.get(position);
-        ImageLoader.getInstance().displayImage("file://" + path, holder.image);
+        ImageLoader.getInstance().displayImage(path, holder.image);
         holder.image.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {

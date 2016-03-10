@@ -4,9 +4,9 @@
     android:layout_height="match_parent">
 
     <RelativeLayout
-        android:id="@+id/home_top_layout"
+        android:id="@+id/render_top_layout"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
+        android:layout_height="@dimen/head_height"
         android:layout_alignParentTop="true"
         android:background="@drawable/bg_content">
 
@@ -18,31 +18,12 @@
     </RelativeLayout>
 
     <LinearLayout
-        android:id="@+id/home_bottom_layout"
+        android:id="@+id/render_bottom_layout"
         android:layout_width="match_parent"
-        android:layout_height="80dp"
+        android:layout_height="@dimen/foot_height"
         android:layout_alignParentBottom="true"
         android:background="@android:color/transparent"
         android:baselineAligned="false">
-
-        <RelativeLayout
-            android:id="@+id/render_switch_view"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="@drawable/home_button_selector">
-
-            <Button
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerInParent="true"
-                android:background="@android:color/transparent"
-                android:clickable="false"
-                android:gravity="center"
-                android:text="@string/switch_next"
-                android:textColor="@android:color/white"
-                android:textSize="16sp" />
-        </RelativeLayout>
 
         <RelativeLayout
             android:id="@+id/render_back_view"

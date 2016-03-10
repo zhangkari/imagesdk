@@ -26,7 +26,7 @@ android {
 
     defaultConfig {
         applicationId "com.kari.imgsdk"
-        minSdkVersion 9
+        minSdkVersion 14
         targetSdkVersion 14
         versionCode 1
         versionName "1.0"
